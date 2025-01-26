@@ -229,6 +229,7 @@ export class ExtensionManagementService extends AbstractExtensionManagementServi
 	async cleanUp(): Promise<void> {
 		this.logService.trace('ExtensionManagementService#cleanUp');
 		try {
+			this.logService.debug('JOSPICER: cleaning up extensions');
 			await this.extensionsScanner.cleanUp();
 		} catch (error) {
 			this.logService.error(error);

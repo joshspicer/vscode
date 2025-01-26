@@ -33,7 +33,7 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 
 	constructor(
 		private readonly _extensionManagementCLI: ExtensionManagementCLI,
-		environmentService: IServerEnvironmentService,
+		private readonly environmentService: IServerEnvironmentService,
 		private readonly _userDataProfilesService: IUserDataProfilesService,
 		private readonly _extensionsScannerService: IExtensionsScannerService,
 		private readonly _logService: ILogService,
@@ -45,6 +45,7 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 			_logService.trace('Installing builtin extensions passed via args...');
 			const installOptions: InstallOptions = { isMachineScoped: !!environmentService.args['do-not-sync'], installPreReleaseVersion: !!environmentService.args['pre-release'] };
 			performance.mark('code/server/willInstallBuiltinExtensions');
+			_logService.debug('JOSPICER: Installing builtin extensions');
 			this._whenExtensionsReady = this._whenBuiltinExtensionsReady = _extensionManagementCLI.installExtensions([], this._asExtensionIdOrVSIX(builtinExtensionsToInstall), installOptions, !!environmentService.args['force'])
 				.then(() => {
 					performance.mark('code/server/didInstallBuiltinExtensions');
@@ -55,6 +56,7 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 		}
 
 		const extensionsToInstall = environmentService.args['install-extension'];
+		_logService.debug(`JOSPICER: Needs to install ${extensionsToInstall?.map(e => e.toString()).join(', ')}`);
 		if (extensionsToInstall) {
 			_logService.trace('Installing extensions passed via args...');
 			this._whenExtensionsReady = this._whenBuiltinExtensionsReady
@@ -64,11 +66,24 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 					isApplicationScoped: true // extensions installed during server startup are available to all profiles
 				}, !!environmentService.args['force']))
 				.then(() => {
+					_logService.debug('JOSPICER: Installed extensions');
 					_logService.trace('Finished installing extensions');
-				}, error => {
-					_logService.error(error);
-				});
+				}).catch(
+					(error) => {
+						_logService.trace('JOSPICER: [ERR] Could not install extensions');
+						return Promise.reject(error);
+					}
+				)
 		}
+	}
+
+	missing(): Promise<string[]> {
+		// TODO: do more than just return here
+		const extensionsToInstall = this.environmentService.args['install-extension'];
+		if (!extensionsToInstall) {
+			return Promise.resolve([]);
+		}
+		return Promise.resolve(extensionsToInstall);
 	}
 
 	private _asExtensionIdOrVSIX(inputs: string[]): (string | URI)[] {
@@ -76,6 +91,7 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 	}
 
 	whenExtensionsReady(): Promise<void> {
+		this._logService.debug("JOSPICER:  whenExtensionsReady()");
 		return this._whenExtensionsReady;
 	}
 
@@ -90,6 +106,13 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 		this._logService.trace(`Scanning extensions using UI language: ${language}`);
 
 		await this._whenBuiltinExtensionsReady;
+
+		///
+		this._logService.debug("JOSPICER: Called scanExtensions(), maybe from the workbench?");
+		const extensionsToInstall = this.environmentService.args['install-extension'];
+		this._logService.debug(`JOSPICER: Wish we had -> ${extensionsToInstall?.map(e => e.toString()).join(', ')}`);
+
+		///
 
 		const extensionDevelopmentPaths = extensionDevelopmentLocations ? extensionDevelopmentLocations.filter(url => url.scheme === Schemas.file).map(url => url.fsPath) : undefined;
 		profileLocation = profileLocation ?? this._userDataProfilesService.defaultProfile.extensionsResource;
@@ -144,6 +167,14 @@ export class RemoteExtensionsScannerService implements IRemoteExtensionsScannerS
 	}
 
 	private async _scanInstalledExtensions(profileLocation: URI, language: string): Promise<IExtensionDescription[]> {
+		this._logService.debug('JOSHSPICER: in _scanInstalledExtensions.  Is this before or after user connect?');
+
+		this.whenExtensionsReady().then(() => {
+			this._logService.debug('JOSPICER: (THEN) _scanInstalledExtensions whenExtensionsReady()');
+		}).catch(err => {
+			this._logService.debug(`JOSPICER: (CATCH) _scanInstalledExtensions whenExtensionsReady(): ${err}`);
+		});
+
 		const scannedExtensions = await this._extensionsScannerService.scanUserExtensions({ profileLocation, language, useCache: true });
 		return scannedExtensions.map(e => toExtensionDescription(e, false));
 	}
@@ -309,6 +340,7 @@ export class RemoteExtensionsScannerChannel implements IServerChannel {
 		const uriTransformer = this.getUriTransformer(context);
 		switch (command) {
 			case 'whenExtensionsReady': return this.service.whenExtensionsReady();
+			case 'missing': return this.service.missing();
 			case 'scanExtensions': {
 				const language = args[0];
 				const profileLocation = args[1] ? URI.revive(uriTransformer.transformIncoming(args[1])) : undefined;

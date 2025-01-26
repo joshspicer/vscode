@@ -503,7 +503,7 @@ export abstract class AbstractExtensionManagementService extends CommontExtensio
 		const results = [...installExtensionResultsMap.values()];
 		for (const result of results) {
 			if (result.local) {
-				this.logService.info(`Extension installed successfully:`, result.identifier.id, result.profileLocation.toString());
+				this.logService.info(`JOSPICER Extension installed successfully:`, result.identifier.id, result.profileLocation.toString());
 			}
 		}
 		this._onDidInstallExtensions.fire(results);

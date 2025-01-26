@@ -521,6 +521,8 @@ class RemoteExtensionHostAgentServer extends Disposable implements IServerAPI {
 					this._onDidCloseExtHostConnection();
 				});
 				con.start(startParams);
+
+				this._logService.debug('JOSPICER: connected to client.');
 			}
 
 		} else if (msg.desiredConnectionType === ConnectionType.Tunnel) {
@@ -801,6 +803,8 @@ export async function createServer(address: string | net.AddressInfo | null, arg
 	}
 
 	const remoteExtensionHostAgentServer = instantiationService.createInstance(RemoteExtensionHostAgentServer, socketServer, connectionToken, vsdaMod, hasWebClient, serverBasePath);
+
+	console.log('JOSPICER: /code/server/ready');
 
 	perf.mark('code/server/ready');
 	const currentTime = performance.now();

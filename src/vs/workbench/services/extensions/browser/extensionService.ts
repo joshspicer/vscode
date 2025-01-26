@@ -140,6 +140,8 @@ export class ExtensionService extends AbstractExtensionService implements IExten
 	}
 
 	private async _resolveExtensionsDefault(emitter: AsyncIterableEmitter<ResolvedExtensions>) {
+		this._logService.debug('JOSPICER: In a strange place...');
+
 		const [localExtensions, remoteExtensions] = await Promise.all([
 			this._scanWebExtensions(),
 			this._remoteExtensionsScannerService.scanExtensions()

@@ -89,12 +89,140 @@ export class ExtensionRecommendationsService extends Disposable implements IExte
 	}
 
 	private async activate(): Promise<void> {
+
+		// await this.remoteExtensionsScannerService.whenExtensionsReady()
+		// 	.then(() => {
+		// 		console.log('fulfilled');
+		// 	}).catch(() => {
+		// 		console.log('rejected.  This is expected.');
+
+		// 		// Proof of concept: Install an extension from here
+		// 		this.extensionManagementService.installFromGallery({
+		// 			type: "gallery",
+		// 			identifier: {
+		// 				id: "github.copilot",
+		// 				uuid: "23c4aeee-f844-43cd-b53e-1113e483f1a6",
+		// 			},
+		// 			name: "copilot",
+		// 			version: "1.259.1335",
+		// 			displayName: "GitHub Copilot",
+		// 			publisherId: "7c1c19cd-78eb-4dfb-8999-99caf7679002",
+		// 			publisher: "GitHub",
+		// 			publisherDisplayName: "GitHub",
+		// 			publisherDomain: {
+		// 				link: "https://github.com",
+		// 				verified: true,
+		// 			},
+		// 			description: "Your AI pair programmer",
+		// 			installCount: 26803564,
+		// 			rating: 3.604609966278076,
+		// 			ratingCount: 1128,
+		// 			categories: [
+		// 				"Programming Languages",
+		// 				"Machine Learning",
+		// 				"AI",
+		// 				"Chat",
+		// 			],
+		// 			tags: [
+		// 				"ai",
+		// 				"autocomplete",
+		// 				"c#",
+		// 				"c++",
+		// 				"code-referencing",
+		// 				"codex",
+		// 				"co-pilot",
+		// 				"documentation",
+		// 				"go",
+		// 				"golang",
+		// 				"intellisense",
+		// 				"java",
+		// 				"javascript",
+		// 				"keybindings",
+		// 				"kotlin",
+		// 				"openai",
+		// 				"php",
+		// 				"pilot",
+		// 				"python",
+		// 				"refactor",
+		// 				"ruby",
+		// 				"snippets",
+		// 				"typescript",
+		// 			],
+		// 			releaseDate: 1624976777880,
+		// 			lastUpdated: 1737735084443,
+		// 			allTargetPlatforms: [
+		// 				TargetPlatform.UNDEFINED,
+		// 			],
+		// 			assets: {
+		// 				manifest: {
+		// 					uri: "https://github.gallerycdn.vsassets.io/extensions/github/copilot/1.259.1335/1737734880548/Microsoft.VisualStudio.Code.Manifest",
+		// 					fallbackUri: "https://github.gallery.vsassets.io/_apis/public/gallery/publisher/GitHub/extension/copilot/1.259.1335/assetbyname/Microsoft.VisualStudio.Code.Manifest",
+		// 				},
+		// 				readme: {
+		// 					uri: "https://github.gallerycdn.vsassets.io/extensions/github/copilot/1.259.1335/1737734880548/Microsoft.VisualStudio.Services.Content.Details",
+		// 					fallbackUri: "https://github.gallery.vsassets.io/_apis/public/gallery/publisher/GitHub/extension/copilot/1.259.1335/assetbyname/Microsoft.VisualStudio.Services.Content.Details",
+		// 				},
+		// 				changelog: null,
+		// 				license: {
+		// 					uri: "https://github.gallerycdn.vsassets.io/extensions/github/copilot/1.259.1335/1737734880548/Microsoft.VisualStudio.Services.Content.License",
+		// 					fallbackUri: "https://github.gallery.vsassets.io/_apis/public/gallery/publisher/GitHub/extension/copilot/1.259.1335/assetbyname/Microsoft.VisualStudio.Services.Content.License",
+		// 				},
+		// 				repository: null,
+		// 				download: {
+		// 					uri: "https://github.gallery.vsassets.io/_apis/public/gallery/publisher/GitHub/extension/copilot/1.259.1335/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage?redirect=true",
+		// 					fallbackUri: "https://github.gallery.vsassets.io/_apis/public/gallery/publisher/GitHub/extension/copilot/1.259.1335/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage",
+		// 				},
+		// 				icon: {
+		// 					uri: "https://github.gallerycdn.vsassets.io/extensions/github/copilot/1.259.1335/1737734880548/Microsoft.VisualStudio.Services.Icons.Default",
+		// 					fallbackUri: "https://github.gallery.vsassets.io/_apis/public/gallery/publisher/GitHub/extension/copilot/1.259.1335/assetbyname/Microsoft.VisualStudio.Services.Icons.Default",
+		// 				},
+		// 				signature: {
+		// 					uri: "https://github.gallerycdn.vsassets.io/extensions/github/copilot/1.259.1335/1737734880548/Microsoft.VisualStudio.Services.VsixSignature",
+		// 					fallbackUri: "https://github.gallery.vsassets.io/_apis/public/gallery/publisher/GitHub/extension/copilot/1.259.1335/assetbyname/Microsoft.VisualStudio.Services.VsixSignature",
+		// 				},
+		// 				coreTranslations: [
+		// 				],
+		// 			},
+		// 			properties: {
+		// 				dependencies: [
+		// 				],
+		// 				extensionPack: [
+		// 					"github.copilot-chat",
+		// 				],
+		// 				engine: "^1.96.0",
+		// 				enabledApiProposals: [
+		// 					"inlineCompletionsAdditions",
+		// 				],
+		// 				localizedLanguages: [
+		// 				],
+		// 				targetPlatform: TargetPlatform.UNDEFINED,
+		// 				isPreReleaseVersion: true,
+		// 				executesCode: true,
+		// 			},
+		// 			hasPreReleaseVersion: true,
+		// 			hasReleaseVersion: true,
+		// 			preview: false,
+		// 			isSigned: true,
+		// 			queryContext: {
+		// 				"X-Market-Search-Activity-Id": "e8559844-e8e3-4e63-bea9-845bd554735a",
+		// 			},
+		// 			supportLink: "https://github.com/community/community/discussions/categories/copilot",
+		// 			telemetryData: {
+		// 				index: 0,
+		// 				querySource: "searchText",
+		// 				queryActivityId: "e8559844-e8e3-4e63-bea9-845bd554735a",
+		// 			},
+		// 		});
+		// 	});
+
 		try {
 			await Promise.allSettled([
 				this.remoteExtensionsScannerService.whenExtensionsReady(),
 				this.userDataInitializationService.whenInitializationFinished(),
 				this.lifecycleService.when(LifecyclePhase.Restored)]);
-		} catch (error) { /* ignore */ }
+		} catch (error) { /* ignore */
+			console.log('JOSPICER: In a strange place (catch of recommendations::activate()');
+		}
 
 		// activate all recommendations
 		await Promise.all([

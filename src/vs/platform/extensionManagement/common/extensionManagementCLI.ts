@@ -73,6 +73,8 @@ export class ExtensionManagementCLI {
 	public async installExtensions(extensions: (string | URI)[], builtinExtensions: (string | URI)[], installOptions: InstallOptions, force: boolean): Promise<void> {
 		const failed: string[] = [];
 
+		this.logger.debug(`JOSPICER: installExtensions(${extensions}, ${builtinExtensions}, ${installOptions}, ${force})`);
+
 		try {
 			if (extensions.length) {
 				this.logger.info(this.location ? localize('installingExtensionsOnLocation', "Installing extensions on {0}...", this.location) : localize('installingExtensions', "Installing extensions..."));

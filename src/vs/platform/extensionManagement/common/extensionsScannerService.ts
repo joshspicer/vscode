@@ -198,6 +198,9 @@ export abstract class AbstractExtensionsScannerService extends Disposable implem
 	}
 
 	async scanUserExtensions(scanOptions: UserExtensionsScanOptions): Promise<IScannedExtension[]> {
+
+		this.logService.trace('JOSPICER: in scanUserExtensions as expected');
+
 		this.logService.trace('Started scanning user extensions', scanOptions.profileLocation);
 		const profileScanOptions: IProfileExtensionsScanOptions | undefined = this.uriIdentityService.extUri.isEqual(scanOptions.profileLocation, this.userDataProfilesService.defaultProfile.extensionsResource) ? { bailOutWhenFileNotFound: true } : undefined;
 		const extensionsScannerInput = await this.createExtensionScannerInput(scanOptions.profileLocation, true, ExtensionType.User, scanOptions.language, true, profileScanOptions, scanOptions.productVersion ?? this.getProductVersion());

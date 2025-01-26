@@ -397,8 +397,25 @@ export class NativeExtensionService extends AbstractExtensionService implements 
 					if (e.type === PersistentConnectionEventType.ConnectionLost) {
 						this._remoteAuthorityResolverService._clearResolvedAuthority(remoteAuthority);
 					}
+
+					// if (e.type === PersistentConnectionEventType.ConnectionGain) {
+					// 	this._remoteExtensionsScannerService.whenExtensionsReady().then(() => {
+					// 		this._logService.debug('JOSPICER: [THEN] connectionGain')
+					// 	}).catch(err => {
+					// 		this._logService.error('JOSPICER: [CATCH] connectionGain', err);
+					// 	});
+					// }
 				});
 				connection.onReconnecting(() => this._resolveAuthorityAgain());
+			}
+
+			// TODO: JOSPICER - This seems like a good spot
+			const missing = await this._remoteExtensionsScannerService.missing();
+			this._logService.debug('JOSPICER: missing extensions', missing);
+
+			const exts = await this._extensionGalleryService.getExtensions(missing.map(id => ({ id })), CancellationToken.None);
+			for (const ext of exts) {
+				await this._extensionManagementService.installFromGallery(ext);
 			}
 
 			// fetch the remote environment

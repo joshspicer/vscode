@@ -232,7 +232,13 @@ export async function setupServerServices(connectionToken: ServerConnectionToken
 		socketServer.registerChannel('extensions', channel);
 
 		// clean up extensions folder
-		remoteExtensionsScanner.whenExtensionsReady().then(() => extensionManagementService.cleanUp());
+		logService.debug('JOSPICER: in setupServerServices,about to call an occurence of whenExtensionsReady!');
+		remoteExtensionsScanner.whenExtensionsReady()
+			.then(() => {
+				logService.debug('JOSPICER: in setupServerServices,about to call an occurence of whenExtensionsReady');
+				extensionManagementService.cleanUp()
+			})
+			.catch(e => logService.debug(`JOSPICER: in catch of a call to whenExtensionsReady!: ${e}`));
 
 		disposables.add(new ErrorTelemetry(accessor.get(ITelemetryService)));
 

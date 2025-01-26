@@ -39,6 +39,13 @@ class RemoteExtensionsScannerService implements IRemoteExtensionsScannerService 
 		);
 	}
 
+	missing(): Promise<string[]> {
+		return this.withChannel(
+			channel => channel.call('missing'),
+			[]
+		);
+	}
+
 	async scanExtensions(): Promise<IExtensionDescription[]> {
 		try {
 			const languagePack = await this.activeLanguagePackService.getExtensionIdProvidingCurrentLocale();
