@@ -44,6 +44,11 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		@IHoverService hoverService: IHoverService
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
+
+		// Listen for job changes and refresh UI automatically
+		this._register(this.remoteCodingAgentsService.onJobsChanged(() => {
+			this.refreshJobsFromCache();
+		}));
 	}
 
 	protected override renderBody(container: HTMLElement): void {
@@ -103,8 +108,40 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		this.columns.forEach(column => clearNode(column));
 		this.jobElements.clear();
 
-		// Get jobs from service
-		const jobs = await this.remoteCodingAgentsService.getJobs();
+		// Get jobs from service with refresh=true for manual refresh
+		const jobs = await this.remoteCodingAgentsService.getJobs(true);
+
+		// Group jobs by status
+		const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
+		jobs.forEach(job => {
+			const status = job.status || 'created';
+			if (!jobsByStatus.has(status)) {
+				jobsByStatus.set(status, []);
+			}
+			jobsByStatus.get(status)!.push(job);
+		});
+
+		// Render jobs in columns
+		jobsByStatus.forEach((statusJobs, status) => {
+			const column = this.columns.get(status);
+			if (column) {
+				statusJobs.forEach(job => this.createJobCard(job, column));
+				this.updateColumnCount(status, statusJobs.length);
+			}
+		});
+	}
+
+	private async refreshJobsFromCache(): Promise<void> {
+		if (!this.kanbanContainer) {
+			return;
+		}
+
+		// Clear existing jobs
+		this.columns.forEach(column => clearNode(column));
+		this.jobElements.clear();
+
+		// Get jobs from cache (no refresh)
+		const jobs = await this.remoteCodingAgentsService.getJobs(false);
 
 		// Group jobs by status
 		const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();

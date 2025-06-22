@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Disposable, IDisposable } from '../../../../base/common/lifecycle.js';
+import { Emitter, Event } from '../../../../base/common/event.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 import { IRemoteCodingAgent, IRemoteCodingAgentJob, IRemoteCodingAgentsService } from '../common/remoteCodingAgents.js';
 
@@ -13,8 +14,15 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 	private _agents: IRemoteCodingAgent[] = [];
 	private _jobs: IRemoteCodingAgentJob[] = [];
 
+	private readonly _onJobsChanged = this._register(new Emitter<void>());
+	readonly onJobsChanged: Event<void> = this._onJobsChanged.event;
+
 	constructor(@ICommandService private readonly commandService: ICommandService) {
 		super();
+	}
+
+	private fireJobsChanged(): void {
+		this._onJobsChanged.fire();
 	}
 
 	registerAgent(agent: IRemoteCodingAgent): IDisposable {
@@ -38,12 +46,20 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 		const result = await this.commandService.executeCommand<IRemoteCodingAgentJob | undefined>(agent.createCommand, input);
 		if (result) {
 			this._jobs.push(result);
+			this.fireJobsChanged();
 		}
 		console.log('createJob result:', result);
 		return result;
 	}
 
-	async getJobs(): Promise<IRemoteCodingAgentJob[]> {
+	async getJobs(refresh = true): Promise<IRemoteCodingAgentJob[]> {
+		if (!refresh) {
+			return [...this._jobs];
+		}
+
+		const previousJobsCount = this._jobs.length;
+		const previousJobs = this._jobs.map(j => ({ id: j.id, status: j.status }));
+
 		for (const agent of this._agents) {
 			if (agent.statusCommand) {
 				try {
@@ -64,6 +80,16 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 				}
 			}
 		}
+
+		// Check if jobs changed
+		const currentJobs = this._jobs.map(j => ({ id: j.id, status: j.status }));
+		const jobsChanged = this._jobs.length !== previousJobsCount ||
+			JSON.stringify(previousJobs) !== JSON.stringify(currentJobs);
+
+		if (jobsChanged) {
+			this.fireJobsChanged();
+		}
+
 		return [...this._jobs];
 	}
 
@@ -73,5 +99,6 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 			return;
 		}
 		await this.commandService.executeCommand(agent.operateCommand, jobId, operation);
+		this.fireJobsChanged();
 	}
 }

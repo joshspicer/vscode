@@ -8,6 +8,7 @@ import { localize, localize2 } from '../../../../nls.js';
 import { registerIcon } from '../../../../platform/theme/common/iconRegistry.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { IDisposable } from '../../../../base/common/lifecycle.js';
+import { Event } from '../../../../base/common/event.js';
 
 export interface IRemoteCodingAgentJob {
 	id: string;
@@ -38,10 +39,12 @@ export const IRemoteCodingAgentsService = createDecorator<IRemoteCodingAgentsSer
 export interface IRemoteCodingAgentsService {
 	_serviceBrand: undefined;
 
+	readonly onJobsChanged: Event<void>;
+
 	registerAgent(agent: IRemoteCodingAgent): IDisposable;
 	getAgents(): IRemoteCodingAgent[];
 
 	createJob(input: string, agentId: string): Promise<IRemoteCodingAgentJob | undefined>;
-	getJobs(): Promise<IRemoteCodingAgentJob[]>;
+	getJobs(refresh?: boolean): Promise<IRemoteCodingAgentJob[]>;
 	operateJob(agentId: string, jobId: string, operation: string): Promise<void>;
 }
