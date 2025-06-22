@@ -21,8 +21,6 @@ import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { append, $, clearNode, addDisposableListener } from '../../../../base/browser/dom.js';
-import { Button } from '../../../../base/browser/ui/button/button.js';
-import { defaultButtonStyles } from '../../../../platform/theme/browser/defaultStyles.js';
 import { ICommandService } from '../../../../platform/commands/common/commands.js';
 
 class RemoteCodingAgentsKanbanView extends ViewPane {
@@ -63,7 +61,6 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		const viewContainer = append(container, $('.remote-coding-agents-view'));
 		this.kanbanContainer = append(viewContainer, $('.remote-coding-agents-kanban'));
 		this.createKanbanBoard();
-		this.createToolbar(viewContainer);
 		this.refreshJobs();
 
 		// Start timer to refresh jobs every 5 seconds
@@ -101,16 +98,6 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 			this.columns.set(status, jobsContainer);
 		});
 	}
-
-	private createToolbar(container: HTMLElement): void {
-		const toolbar = append(container, $('.kanban-toolbar'));
-
-		const refreshButton = this._register(new Button(toolbar, defaultButtonStyles));
-		refreshButton.label = localize('refresh', 'Refresh');
-		refreshButton.element.title = localize('refreshTooltip', 'Refresh jobs');
-		this._register(refreshButton.onDidClick(() => this.refreshJobs()));
-	}
-
 	private async refreshJobs(): Promise<void> {
 		if (!this.kanbanContainer || this.isRefreshing) {
 			return;
