@@ -1,0 +1,67 @@
+{
+	"name": "joshbot",
+	"displayName": "JoshBot Remote Coding Agent",
+	"description": "Sample implementation of remote coding agents",
+	"version": "1.0.0",
+	"publisher": "vscode",
+	"engines": {
+		"vscode": "^1.85.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"enabledApiProposals": ["remoteCodingAgents"],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "joshbot.createJob",
+				"title": "Create JoshBot Job",
+				"category": "JoshBot"
+			},
+			{
+				"command": "joshbot.showAllJobs",
+				"title": "Show All JoshBot Jobs",
+				"category": "JoshBot"
+			},
+			{
+				"command": "joshbot.getJobStatus",
+				"title": "Get JoshBot Job Status",
+				"category": "JoshBot"
+			},
+			{
+				"command": "joshbot.operateJob",
+				"title": "Operate JoshBot Job",
+				"category": "JoshBot"
+			},
+			{
+				"command": "remoteCodingAgents.jobClicked",
+				"title": "Handle Job Click",
+				"category": "JoshBot"
+			}
+		],
+		"remoteCodingAgents": [
+			{
+				"id": "joshbot",
+				"displayName": "JoshBot",
+				"description": "AI-powered coding assistant that can generate, review, and improve code",
+				"createCommand": "joshbot.createJob",
+				"statusCommand": "joshbot.getJobStatus",
+				"operateCommand": "joshbot.operateJob"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.85.0",
+		"@types/node": "18.x",
+		"typescript": "^5.3.2"
+	}
+}
