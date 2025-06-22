@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as dom from '../../../../base/browser/dom.js';
-import { Button, ButtonWithDropdown } from '../../../../base/browser/ui/button/button.js';
+import { Button } from '../../../../base/browser/ui/button/button.js';
 import { ITreeContextMenuEvent, ITreeElement } from '../../../../base/browser/ui/tree/tree.js';
 import { assert } from '../../../../base/common/assert.js';
 import { disposableTimeout, timeout } from '../../../../base/common/async.js';
@@ -25,7 +25,6 @@ import { ICodeEditor } from '../../../../editor/browser/editorBrowser.js';
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
 import { localize } from '../../../../nls.js';
 import { MenuId } from '../../../../platform/actions/common/actions.js';
-import { IAction, toAction } from '../../../../base/common/actions.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IContextKey, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -54,7 +53,6 @@ import { IChatInputState } from '../common/chatWidgetHistoryService.js';
 import { CodeBlockModelCollection } from '../common/codeBlockModelCollection.js';
 import { ChatAgentLocation, ChatMode } from '../common/constants.js';
 import { ILanguageModelToolsService, IToolData, ToolSet } from '../common/languageModelToolsService.js';
-import { IRemoteCodingAgentsService } from '../../remoteCodingAgents/common/remoteCodingAgents.js';
 import { type TPromptMetadata } from '../common/promptSyntax/parsers/promptHeader/promptHeader.js';
 import { IPromptParserResult, IPromptsService } from '../common/promptSyntax/service/promptsService.js';
 import { handleModeSwitch } from './actions/chatActions.js';
@@ -277,8 +275,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		@IChatEditingService chatEditingService: IChatEditingService,
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 		@IPromptsService private readonly promptsService: IPromptsService,
-		@ILanguageModelToolsService private readonly toolsService: ILanguageModelToolsService,
-		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
+		@ILanguageModelToolsService private readonly toolsService: ILanguageModelToolsService
 	) {
 		super();
 
@@ -531,9 +528,6 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			this.scrollLock = true;
 			this.scrollToEnd();
 		}));
-
-		// Create remote job button with dropdown support
-		this.createRemoteJobButton();
 
 		this._register(this.editorOptions.onDidChange(() => this.onDidStyleChange()));
 		this.onDidStyleChange();
@@ -1635,64 +1629,6 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 		// add to attached list to make the instructions sticky
 		//this.inputPart.attachmentModel.addContext(...computer.autoAddedInstructions);
-	}
-
-	private createRemoteJobButton(): void {
-		const agents = this.remoteCodingAgentsService.getAgents();
-
-		if (agents.length === 0) {
-			// No agents available, don't show button
-			return;
-		}
-
-		if (agents.length === 1) {
-			// Single agent, use regular button
-			const remoteJobButton = this._register(new Button(this.listContainer, {
-				supportIcons: true,
-				buttonBackground: asCssVariable(buttonSecondaryBackground),
-				buttonForeground: asCssVariable(buttonSecondaryForeground),
-				buttonHoverBackground: asCssVariable(buttonSecondaryHoverBackground),
-			}));
-			remoteJobButton.element.classList.add('chat-remote-job');
-			remoteJobButton.label = `$(${Codicon.cloudUpload.id})`;
-			remoteJobButton.setTitle(localize('remoteJobButtonLabel', "Create Remote Job with {0}", agents[0].displayName));
-			this._register(remoteJobButton.onDidClick(() => {
-				const input = this.getInput();
-				this.remoteCodingAgentsService.createJob(input, agents[0].id);
-			}));
-		} else {
-			// Multiple agents, use button with dropdown
-			const actions: IAction[] = agents.map(agent => toAction({
-				id: `remote-job-${agent.id}`,
-				label: agent.displayName,
-				tooltip: agent.description || agent.displayName,
-				enabled: true,
-				run: async () => {
-					const input = this.getInput();
-					await this.remoteCodingAgentsService.createJob(input, agent.id);
-				}
-			}));
-
-			const remoteJobButton = this._register(new ButtonWithDropdown(this.listContainer, {
-				actions: actions,
-				addPrimaryActionToDropdown: false,
-				contextMenuProvider: this.contextMenuService,
-				supportIcons: true,
-				title: localize('remoteJobButtonDropdownLabel', "Create Remote Job"),
-				buttonBackground: asCssVariable(buttonSecondaryBackground),
-				buttonForeground: asCssVariable(buttonSecondaryForeground),
-				buttonHoverBackground: asCssVariable(buttonSecondaryHoverBackground),
-			}));
-
-			remoteJobButton.element.classList.add('chat-remote-job');
-			remoteJobButton.primaryButton.label = `$(${Codicon.cloudUpload.id})`;
-
-			// Primary button action (use first agent as default)
-			this._register(remoteJobButton.primaryButton.onDidClick(() => {
-				const input = this.getInput();
-				this.remoteCodingAgentsService.createJob(input, agents[0].id);
-			}));
-		}
 	}
 }
 

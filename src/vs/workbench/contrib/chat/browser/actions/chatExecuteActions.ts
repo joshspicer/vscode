@@ -461,7 +461,7 @@ export class CreateRemoteAgentJobAction extends Action2 {
 			menu: {
 				id: MenuId.ChatExecute,
 				group: 'navigation',
-				order: 5
+				order: 4,
 			}
 		});
 	}

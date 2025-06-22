@@ -43,7 +43,8 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 			return undefined;
 		}
 		console.log('Using agent:', agent);
-		const result = await this.commandService.executeCommand<IRemoteCodingAgentJob | undefined>(agent.createCommand, input);
+		// Pass the input as an object with a prompt property, as expected by the joshbot extension
+		const result = await this.commandService.executeCommand<IRemoteCodingAgentJob | undefined>(agent.createCommand, { prompt: input });
 		if (result) {
 			this._jobs.push(result);
 			this.fireJobsChanged();
