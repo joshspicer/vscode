@@ -9,7 +9,7 @@ This file contains key information to help AI assistants work more efficiently w
 ## Quick Reference for Common Issues
 
 ### Build & Test Workflow
-1. **Compile**: `npm run compile` (required before testing code changes)
+1. **Compile**: `npm run compile` (required before testing code changes). But do NOT run this manually since we will have a watcher running!
 2. **Run specific tests**: `./scripts/test.sh --grep "pattern"`
 3. **Test file location**: `out/` directory contains compiled JavaScript
 4. **Extension compilation**: Extensions compile separately and take significant time

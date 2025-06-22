@@ -64,6 +64,12 @@ export enum TerminalQuickFixType {
 	Command = 3
 }
 
+export enum RemoteCodingJobChangeKind {
+	Added = 1,
+	Changed = 2,
+	Removed = 3
+}
+
 @es5ClassCompat
 export class Disposable {
 

@@ -5,112 +5,86 @@
 
 import { Disposable, IDisposable } from '../../../../base/common/lifecycle.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
-import { ICommandService } from '../../../../platform/commands/common/commands.js';
-import { IRemoteCodingAgent, IRemoteCodingAgentJob, IRemoteCodingAgentsService } from '../common/remoteCodingAgents.js';
+import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, IRemoteCodingAgentProvider, IRemoteCodingJobsChangeEvent } from '../common/remoteCodingAgents.js';
 
 export class RemoteCodingAgentsService extends Disposable implements IRemoteCodingAgentsService {
 	declare _serviceBrand: undefined;
 
-	private _agents: IRemoteCodingAgent[] = [];
-	private _jobs: IRemoteCodingAgentJob[] = [];
+	private _providers: IRemoteCodingAgentProvider[] = [];
 
-	private readonly _onJobsChanged = this._register(new Emitter<void>());
-	readonly onJobsChanged: Event<void> = this._onJobsChanged.event;
+	private readonly _onJobsChanged = this._register(new Emitter<IRemoteCodingJobsChangeEvent>());
+	readonly onJobsChanged: Event<IRemoteCodingJobsChangeEvent> = this._onJobsChanged.event;
 
-	constructor(@ICommandService private readonly commandService: ICommandService) {
+	constructor() {
 		super();
 	}
 
-	private fireJobsChanged(): void {
-		this._onJobsChanged.fire();
+	private fireJobsChanged(event: IRemoteCodingJobsChangeEvent): void {
+		this._onJobsChanged.fire(event);
 	}
 
-	registerAgent(agent: IRemoteCodingAgent): IDisposable {
-		this._agents.push(agent);
-		return { dispose: () => { this._agents = this._agents.filter(a => a !== agent); } };
+	registerProvider(provider: IRemoteCodingAgentProvider): IDisposable {
+		this._providers.push(provider);
+
+		// Listen to provider job changes and forward them
+		const disposable = provider.onDidChangeJobs(event => {
+			this.fireJobsChanged(event);
+		});
+
+		return {
+			dispose: () => {
+				this._providers = this._providers.filter(p => p !== provider);
+				disposable.dispose();
+			}
+		};
 	}
 
-	getAgents(): IRemoteCodingAgent[] {
-		return [...this._agents];
+	getProviders(): IRemoteCodingAgentProvider[] {
+		return [...this._providers];
 	}
 
 	async createJob(input: string, agentId: string): Promise<IRemoteCodingAgentJob | undefined> {
-		console.log('Available agents:', this._agents);
-		console.log('createJob called with input:', input, 'agentId:', agentId);
-		const agent = agentId ? this._agents.find(a => a.id === agentId) : this._agents[0];
-		if (!agent) {
-			console.log('No agent found');
+		const provider = agentId ? this._providers.find(p => p.id === agentId) : this._providers[0];
+		if (!provider) {
 			return undefined;
 		}
-		console.log('Using agent:', agent);
-		// Pass the input as an object with a prompt property, as expected by the joshbot extension
-		const result = await this.commandService.executeCommand<IRemoteCodingAgentJob | undefined>(agent.createCommand, { prompt: input });
-		if (result) {
-			this._jobs.push(result);
-			this.fireJobsChanged();
+
+		try {
+			return await provider.provideJobCreation(input);
+		} catch (error) {
+			console.error('Provider createJob error:', error);
+			return undefined;
 		}
-		console.log('createJob result:', result);
-		return result;
 	}
 
 	async getJobs(refresh = true): Promise<IRemoteCodingAgentJob[]> {
-		if (!refresh) {
-			return [...this._jobs];
-		}
+		const allJobs: IRemoteCodingAgentJob[] = [];
 
-		const previousJobsCount = this._jobs.length;
-		const previousJobs = this._jobs.map(j => ({ id: j.id, status: j.status }));
-
-		// Track which jobs are still present
-		const currentJobIds = new Set<string>();
-
-		for (const agent of this._agents) {
-			if (agent.statusCommand) {
-				try {
-					const jobs = await this.commandService.executeCommand<IRemoteCodingAgentJob[]>(agent.statusCommand);
-					if (Array.isArray(jobs)) {
-						for (const job of jobs) {
-							job.agentId = agent.id;
-							const jobKey = `${agent.id}-${job.id}`;
-							currentJobIds.add(jobKey);
-							const existing = this._jobs.find(j => j.id === job.id && j.agentId === agent.id);
-							if (existing) {
-								existing.status = job.status;
-							} else {
-								this._jobs.push(job);
-							}
-						}
-					}
-				} catch (e: any) {
-					console.warn(`Failed to fetch jobs for agent ${agent.id} using command ${agent.statusCommand}: ${e.message}`);
+		// Get jobs from providers
+		for (const provider of this._providers) {
+			try {
+				const jobs = await provider.provideJobs();
+				if (Array.isArray(jobs)) {
+					allJobs.push(...jobs);
 				}
+			} catch (e: any) {
+				console.warn(`Failed to fetch jobs from provider ${provider.id}: ${e.message}`);
 			}
 		}
 
-		// Remove jobs that are no longer returned from any agent
-		this._jobs = this._jobs.filter(job => {
-			const jobKey = `${job.agentId}-${job.id}`;
-			return currentJobIds.has(jobKey);
-		});
-
-		// Check if jobs changed
-		const currentJobs = this._jobs.map(j => ({ id: j.id, status: j.status }));
-		const jobsChanged = this._jobs.length !== previousJobsCount ||
-			JSON.stringify(previousJobs) !== JSON.stringify(currentJobs);
-
-		if (jobsChanged) {
-			this.fireJobsChanged();
-		}
-
-		return [...this._jobs];
+		return allJobs;
 	}
 
 	async operateJob(agentId: string, jobId: string, operation: string): Promise<void> {
-		const agent = this._agents.find(a => a.id === agentId);
-		if (!agent || !agent.operateCommand) {
+		const provider = this._providers.find(p => p.id === agentId);
+		if (!provider) {
 			return;
 		}
-		await this.commandService.executeCommand(agent.operateCommand, jobId, operation);
-		this.fireJobsChanged();
+
+		try {
+			await provider.provideJobOperation(jobId, operation);
+		} catch (error) {
+			console.error('Provider operateJob error:', error);
+		}
 	}
 }

@@ -3102,6 +3102,32 @@ export interface MainThreadChatStatusShape {
 	$disposeEntry(id: string): void;
 }
 
+export interface IRemoteCodingAgentJobDto {
+	id: string;
+	name: string;
+	status: string;
+	agentId: string;
+	prompt: string;
+}
+
+export interface IRemoteCodingJobsChangeEventDto {
+	added: IRemoteCodingAgentJobDto[];
+	changed: IRemoteCodingAgentJobDto[];
+	removed: IRemoteCodingAgentJobDto[];
+}
+
+export interface MainThreadRemoteCodingAgentsShape extends IDisposable {
+	$registerProvider(providerId: string, displayName: string, description?: string): void;
+	$unregisterProvider(providerId: string): void;
+	$onDidChangeJobs(providerId: string, event: IRemoteCodingJobsChangeEventDto): void;
+}
+
+export interface ExtHostRemoteCodingAgentsShape {
+	$provideJobCreation(providerId: string, prompt: string): Promise<IRemoteCodingAgentJobDto | undefined>;
+	$provideJobs(providerId: string): Promise<IRemoteCodingAgentJobDto[]>;
+	$provideJobOperation(providerId: string, jobId: string, operation: string): Promise<void>;
+}
+
 // --- proxy identifiers
 
 export const MainContext = {
@@ -3178,6 +3204,7 @@ export const MainContext = {
 	MainThreadAiEmbeddingVector: createProxyIdentifier<MainThreadAiEmbeddingVectorShape>('MainThreadAiEmbeddingVector'),
 	MainThreadChatStatus: createProxyIdentifier<MainThreadChatStatusShape>('MainThreadChatStatus'),
 	MainThreadAiSettingsSearch: createProxyIdentifier<MainThreadAiSettingsSearchShape>('MainThreadAiSettingsSearch'),
+	MainThreadRemoteCodingAgents: createProxyIdentifier<MainThreadRemoteCodingAgentsShape>('MainThreadRemoteCodingAgents'),
 };
 
 export const ExtHostContext = {
@@ -3250,4 +3277,5 @@ export const ExtHostContext = {
 	ExtHostTelemetry: createProxyIdentifier<ExtHostTelemetryShape>('ExtHostTelemetry'),
 	ExtHostLocalization: createProxyIdentifier<ExtHostLocalizationShape>('ExtHostLocalization'),
 	ExtHostMcp: createProxyIdentifier<ExtHostMcpShape>('ExtHostMcp'),
+	ExtHostRemoteCodingAgents: createProxyIdentifier<ExtHostRemoteCodingAgentsShape>('ExtHostRemoteCodingAgents'),
 };

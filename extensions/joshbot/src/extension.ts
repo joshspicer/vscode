@@ -5,53 +5,91 @@
 
 import * as vscode from 'vscode';
 
-export interface IRemoteCodingAgentJob {
-	id: string;
-	name: string;
-	status: 'inprogress' | 'readyforreview' | 'completed';
-	agentId: string;
-	prompt: string;
-}
+class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
+	private readonly _onDidChangeJobs = new vscode.EventEmitter<vscode.RemoteCodingJobsChangeEvent>();
+	readonly onDidChangeJobs = this._onDidChangeJobs.event;
 
-class JoshBotAgent {
-	private jobs: Map<string, IRemoteCodingAgentJob> = new Map();
+	private jobs: Map<string, vscode.RemoteCodingAgentJob> = new Map();
 	private jobCounter = 0;
 
+	readonly id = 'devbox';
+	readonly displayName = 'Windows Dev Box';
+	readonly description = 'Iterate on your project backed by the Visual Studio toolchain';
+
 	constructor() {
+		// Create some initial demo jobs after a short delay
+		setTimeout(() => {
+			this.createInitialJobs();
+		}, 2000);
 	}
 
-	async createJob(prompt: string): Promise<IRemoteCodingAgentJob> {
-		const jobId = `joshbot-job-${++this.jobCounter}`;
-		const job: IRemoteCodingAgentJob = {
+	private static takeXWords(text: string, x: number, dotdotdot = true): string {
+		const words = text.split(/\s+/);
+		const result = words.slice(0, x).join(' ');
+		if (dotdotdot && words.length > x) {
+			return result + '...';
+		}
+		return result;
+	}
+
+	async provideJobCreation(prompt: string, token: vscode.CancellationToken): Promise<vscode.RemoteCodingAgentJob | undefined> {
+		if (token.isCancellationRequested) {
+			return undefined;
+		}
+
+		const jobId = `devbox-job-${++this.jobCounter}`;
+		const job: vscode.RemoteCodingAgentJob = {
 			id: jobId,
-			name: `JoshBot Task ${this.jobCounter}`,
-			status: 'inprogress',
-			agentId: 'joshbot',
+			name: JoshBotProvider.takeXWords(prompt, 3),
+			status: 'readyforreview',
+			agentId: this.id,
 			prompt,
 		};
 
 		this.jobs.set(jobId, job);
 
+		// Fire event for new job
+		this._onDidChangeJobs.fire({
+			added: [job],
+			changed: [],
+			removed: []
+		});
+
+		// Simulate AI processing work (5-10 seconds)
 		setTimeout(() => {
-			job.status = 'readyforreview';
-		}, 5000 + Math.random() * 5000); // Simulate AI processing work (5-10 seconds)
+			if (this.jobs.has(jobId)) {
+				job.status = 'readyforreview';
+				this._onDidChangeJobs.fire({
+					added: [],
+					changed: [job],
+					removed: []
+				});
+			}
+		}, 5000 + Math.random() * 5000);
 
 		return job;
 	}
 
-	async getJobStatus(jobId: string): Promise<IRemoteCodingAgentJob | undefined> {
-		return this.jobs.get(jobId);
-	}
+	async provideJobs(token: vscode.CancellationToken): Promise<vscode.RemoteCodingAgentJob[]> {
+		if (token.isCancellationRequested) {
+			return [];
+		}
 
-	async getAllJobs(): Promise<IRemoteCodingAgentJob[]> {
 		return Array.from(this.jobs.values());
 	}
 
-	async operateJob(jobId: string, operation: string): Promise<void> {
+	async provideJobOperation(jobId: string, operation: string, token: vscode.CancellationToken): Promise<void> {
+		if (token.isCancellationRequested) {
+			return;
+		}
+
 		const job = this.jobs.get(jobId);
 		if (!job) {
 			throw new Error(`Job ${jobId} not found`);
 		}
+
+		const oldJob = { ...job };
+
 		switch (operation) {
 			case 'approve':
 				if (job.status === 'readyforreview') {
@@ -63,115 +101,59 @@ class JoshBotAgent {
 					job.status = 'inprogress';
 					job.prompt = '(trying again) ' + job.prompt;
 				}
+				// Simulated requeue
+				setTimeout(() => {
+					job.status = '';
+					this._onDidChangeJobs.fire({
+						added: [],
+						changed: [job],
+						removed: []
+					});
+				}, 5000 + Math.random() * 5000);
+
+
 				break;
 			case 'cancel':
 				this.jobs.delete(jobId);
-				break;
+				this._onDidChangeJobs.fire({
+					added: [],
+					changed: [],
+					removed: [oldJob]
+				});
+				return;
 			default:
 				vscode.window.showErrorMessage(`Unknown operation: ${operation}`);
+				return;
 		}
+
+		// Fire event for changed job
+		this._onDidChangeJobs.fire({
+			added: [],
+			changed: [job],
+			removed: []
+		});
+	}
+
+	private createInitialJobs(): void {
+		// Create a simple cancellation token for initial jobs
+		const token = new vscode.CancellationTokenSource().token;
+
+		this.provideJobCreation('Create a TypeScript interface for user data', token);
+		this.provideJobCreation('Generate unit tests for the auth module', token);
+		this.provideJobCreation('Optimize database queries for better performance', token);
 	}
 }
 
-let joshBotAgent: JoshBotAgent;
+let joshBotProvider: JoshBotProvider;
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('JoshBot extension is now active!');
 
-	joshBotAgent = new JoshBotAgent();
+	joshBotProvider = new JoshBotProvider();
 
-	// Register command to create a new job
-	const createJobCommand = vscode.commands.registerCommand('joshbot.createJob', async (args?: { prompt: string }): Promise<IRemoteCodingAgentJob | undefined> => {
-		let prompt: string | undefined;
-
-		if (args && args.prompt) {
-			// Use the provided prompt from the caller
-			prompt = args.prompt;
-		} else {
-			// Fall back to input box if no arguments provided
-			prompt = await vscode.window.showInputBox({
-				prompt: 'Expected a \'prompt\' in args.  Please enter a prompt for the JoshBot to solve',
-			});
-		}
-
-		if (prompt) {
-			try {
-				const job = await joshBotAgent.createJob(prompt);
-				return job; // Return the job for the caller
-			} catch (error) {
-				vscode.window.showErrorMessage(`Failed to create job: ${error}`);
-			}
-		}
-		return;
-	});
-
-	// Register command to get job status
-	const getJobStatusCommand = vscode.commands.registerCommand('joshbot.getJobs', async () => {
-		return await joshBotAgent.getAllJobs();
-	});
-
-	// Register command to handle job clicks from the kanban view
-	const operateJobCommand = vscode.commands.registerCommand('joshbot.operateJob', async (args: any) => {
-		const { jobId, agentId, job } = args;
-
-		if (agentId !== 'joshbot') {
-			return; // Not our job
-		}
-
-		// Show job details and available actions
-		const actions = [];
-
-		switch (job.status) {
-			case 'inprogress':
-				actions.push('Cancel Job');
-				break;
-			case 'readyforreview':
-				actions.push('Approve', 'Reject');
-				break;
-		}
-
-		const selectedAction = await vscode.window.showQuickPick(actions, {
-			placeHolder: `What would you like to do with ${job.name}?`
-		});
-
-		if (selectedAction) {
-			switch (selectedAction) {
-				case 'Cancel Job':
-					await joshBotAgent.operateJob(jobId, 'cancel');
-					break;
-				case 'Approve':
-					await joshBotAgent.operateJob(jobId, 'approve');
-					break;
-				case 'Reject':
-					await joshBotAgent.operateJob(jobId, 'reject');
-					break;
-			}
-		}
-	});
-
-	// Add commands to subscriptions
-	context.subscriptions.push(createJobCommand);
-	context.subscriptions.push(getJobStatusCommand);
-	context.subscriptions.push(operateJobCommand);
-
-	// // Create some sample jobs for demonstration
-	// setTimeout(async () => {
-	// 	await joshBotAgent.createJob('Create a TypeScript interface for user data');
-	// 	await joshBotAgent.createJob('Generate unit tests for the auth module');
-	// 	await joshBotAgent.createJob('Optimize database queries for better performance');
-
-	// 	// Randomly between 1-60 seconds, move to readyforreview (50% of jobs)
-	// 	const jobs = await joshBotAgent.getAllJobs();
-	// 	for (const job of jobs) {
-	// 		if (job.status === 'inprogress') {
-	// 			setTimeout(async () => {
-	// 				if (Math.random() < 0.5) { // 50% chance to mark as ready for review
-	// 					job.status = 'readyforreview';
-	// 				}
-	// 			}, Math.random() * 60000); // Random delay up to 60 seconds
-	// 		}
-	// 	}
-	// }, 5000); // Start creating jobs after 5 seconds
+	// Register the provider using the proposed API
+	const providerDisposable = vscode.remoteCodingAgents.registerRemoteCodingAgentProvider(joshBotProvider);
+	context.subscriptions.push(providerDisposable);
 }
 
 export function deactivate() {

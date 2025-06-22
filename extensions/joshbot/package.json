@@ -15,40 +15,7 @@
 	],
 	"enabledApiProposals": ["remoteCodingAgents"],
 	"main": "./out/extension.js",
-	"contributes": {
-		"commands": [
-			{
-				"command": "joshbot.createJob",
-				"title": "Create JoshBot Job",
-				"category": "JoshBot"
-			},
-			{
-				"command": "joshbot.getJobs",
-				"title": "Show All JoshBot Jobs",
-				"category": "JoshBot"
-			},
-			{
-				"command": "joshbot.getJobStatus",
-				"title": "Get JoshBot Job Status",
-				"category": "JoshBot"
-			},
-			{
-				"command": "joshbot.operateJob",
-				"title": "Operate JoshBot Job",
-				"category": "JoshBot"
-			}
-		],
-		"remoteCodingAgents": [
-			{
-				"id": "joshbot",
-				"displayName": "JoshBot",
-				"description": "AI-powered coding assistant that can generate, review, and improve code",
-				"createCommand": "joshbot.createJob",
-				"statusCommand": "joshbot.getJobs",
-				"operateCommand": "joshbot.operateJob"
-			}
-		]
-	},
+	"contributes": {},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",

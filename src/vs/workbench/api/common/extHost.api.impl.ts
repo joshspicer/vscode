@@ -33,6 +33,7 @@ import { ExtHostRelatedInformation } from './extHostAiRelatedInformation.js';
 import { ExtHostApiCommands } from './extHostApiCommands.js';
 import { IExtHostApiDeprecationService } from './extHostApiDeprecationService.js';
 import { IExtHostAuthentication } from './extHostAuthentication.js';
+import { IExtHostRemoteCodingAgents } from './extHostRemoteCodingAgents.js';
 import { ExtHostBulkEdits } from './extHostBulkEdits.js';
 import { ExtHostChatAgents2 } from './extHostChatAgents2.js';
 import { ExtHostChatStatus } from './extHostChatStatus.js';
@@ -149,6 +150,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 	const extHostManagedSockets = accessor.get(IExtHostManagedSockets);
 	const extHostProgress = accessor.get(IExtHostProgress);
 	const extHostAuthentication = accessor.get(IExtHostAuthentication);
+	const extHostRemoteCodingAgents = accessor.get(IExtHostRemoteCodingAgents);
 	const extHostLanguageModels = accessor.get(IExtHostLanguageModels);
 	const extHostMcp = accessor.get(IExtHostMpcService);
 
@@ -168,6 +170,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 	rpcProtocol.set(ExtHostContext.ExtHostManagedSockets, extHostManagedSockets);
 	rpcProtocol.set(ExtHostContext.ExtHostProgress, extHostProgress);
 	rpcProtocol.set(ExtHostContext.ExtHostAuthentication, extHostAuthentication);
+	rpcProtocol.set(ExtHostContext.ExtHostRemoteCodingAgents, extHostRemoteCodingAgents);
 	rpcProtocol.set(ExtHostContext.ExtHostChatProvider, extHostLanguageModels);
 
 	// automatically create and register addressable instances
@@ -944,6 +947,18 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			},
 		};
 
+		// namespace: remoteCodingAgents
+		const remoteCodingAgents: typeof vscode.remoteCodingAgents = {
+			registerRemoteCodingAgentProvider(provider: vscode.RemoteCodingAgentProvider): vscode.Disposable {
+				checkProposedApiEnabled(extension, 'remoteCodingAgents');
+				return extHostRemoteCodingAgents.registerRemoteCodingAgentProvider(provider);
+			},
+			get onDidChangeJobs(): vscode.Event<vscode.RemoteCodingJobsChangeEvent> {
+				checkProposedApiEnabled(extension, 'remoteCodingAgents');
+				return extHostRemoteCodingAgents.onDidChangeJobs;
+			}
+		};
+
 		// namespace: workspace
 
 		const workspace: typeof vscode.workspace = {
@@ -1557,6 +1572,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			languages,
 			lm,
 			notebooks,
+			remoteCodingAgents,
 			scm,
 			speech,
 			tasks,
@@ -1841,6 +1857,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			ChatErrorLevel: extHostTypes.ChatErrorLevel,
 			McpHttpServerDefinition: extHostTypes.McpHttpServerDefinition,
 			McpStdioServerDefinition: extHostTypes.McpStdioServerDefinition,
+			RemoteCodingJobChangeKind: extHostTypes.RemoteCodingJobChangeKind,
 			SettingsSearchResultKind: extHostTypes.SettingsSearchResultKind
 		};
 	};

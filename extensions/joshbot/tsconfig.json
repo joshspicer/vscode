@@ -8,5 +8,6 @@
 	},
 	"include": [
 		"src/**/*",
+		"../../src/vscode-dts/vscode.proposed.remoteCodingAgents.d.ts",
 	]
 }

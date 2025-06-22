@@ -18,13 +18,21 @@ export interface IRemoteCodingAgentJob {
 	prompt: string;
 }
 
-export interface IRemoteCodingAgent {
-	id: string;
-	displayName: string;
-	description?: string;
-	createCommand: string;
-	statusCommand?: string;
-	operateCommand?: string;
+
+export interface IRemoteCodingJobsChangeEvent {
+	added: IRemoteCodingAgentJob[];
+	changed: IRemoteCodingAgentJob[];
+	removed: IRemoteCodingAgentJob[];
+}
+
+export interface IRemoteCodingAgentProvider {
+	readonly id: string;
+	readonly displayName: string;
+	readonly description?: string;
+	readonly onDidChangeJobs: Event<IRemoteCodingJobsChangeEvent>;
+	provideJobCreation(prompt: string): Promise<IRemoteCodingAgentJob | undefined>;
+	provideJobs(): Promise<IRemoteCodingAgentJob[]>;
+	provideJobOperation(jobId: string, operation: string): Promise<void>;
 }
 
 export const REMOTE_CODING_AGENTS_TITLE = localize2('remote coding jobs', 'Agents');
@@ -36,10 +44,10 @@ export const IRemoteCodingAgentsService = createDecorator<IRemoteCodingAgentsSer
 export interface IRemoteCodingAgentsService {
 	_serviceBrand: undefined;
 
-	readonly onJobsChanged: Event<void>;
+	readonly onJobsChanged: Event<IRemoteCodingJobsChangeEvent>;
 
-	registerAgent(agent: IRemoteCodingAgent): IDisposable;
-	getAgents(): IRemoteCodingAgent[];
+	registerProvider(provider: IRemoteCodingAgentProvider): IDisposable;
+	getProviders(): IRemoteCodingAgentProvider[];
 
 	createJob(input: string, agentId: string): Promise<IRemoteCodingAgentJob | undefined>;
 	getJobs(refresh?: boolean): Promise<IRemoteCodingAgentJob[]>;

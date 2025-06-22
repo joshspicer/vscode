@@ -4,7 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Disposable } from '../../../../base/common/lifecycle.js';
-import { IntervalTimer } from '../../../../base/common/async.js';
 import { localize } from '../../../../nls.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
@@ -21,19 +20,17 @@ import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { append, $, clearNode, addDisposableListener } from '../../../../base/browser/dom.js';
-import { ICommandService } from '../../../../platform/commands/common/commands.js';
+import { IQuickInputService } from '../../../../platform/quickinput/common/quickInput.js';
 
 class RemoteCodingAgentsKanbanView extends ViewPane {
 	private kanbanContainer: HTMLElement | undefined;
 	private columns: Map<string, HTMLElement> = new Map();
 	private jobElements: Map<string, HTMLElement> = new Map();
-	private refreshTimer: IntervalTimer = new IntervalTimer();
 	private isRefreshing: boolean = false;
 
 	constructor(
 		options: IViewletViewOptions,
 		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
-		@ICommandService private readonly commandService: ICommandService,
 		@IKeybindingService keybindingService: IKeybindingService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IConfigurationService configurationService: IConfigurationService,
@@ -45,10 +42,6 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		@IHoverService hoverService: IHoverService
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
-
-		// Register the timer for disposal
-		this._register(this.refreshTimer);
-
 		// Listen for job changes and refresh UI automatically
 		this._register(this.remoteCodingAgentsService.onJobsChanged(() => {
 			this.refreshJobsFromCache();
@@ -62,12 +55,6 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		this.kanbanContainer = append(viewContainer, $('.remote-coding-agents-kanban'));
 		this.createKanbanBoard();
 		this.refreshJobs();
-
-		// Start timer to refresh jobs every 5 seconds
-		// TODO: API for extensions to push updates
-		this.refreshTimer.cancelAndSet(() => {
-			this.refreshJobs();
-		}, 5000);
 	}
 
 	private createKanbanBoard(): void {
@@ -205,24 +192,58 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	}
 
 	private async onJobCardClick(job: IRemoteCodingAgentJob): Promise<void> {
-
-		// Look up the command for the given agetn
-		const agent = this.remoteCodingAgentsService.getAgents().find(a => a.id === job.agentId);
-		if (!agent || !agent.operateCommand) {
-			console.warn(`No command found for agent ${job.agentId}`);
+		// Find the provider for this job
+		const provider = this.remoteCodingAgentsService.getProviders().find(p => p.id === job.agentId);
+		if (!provider) {
+			console.warn(`No provider found for agent ${job.agentId}`);
 			return;
 		}
 
-		// Fire a command that implementing extensions can handle
+		// Show job operation options
+		const actions: string[] = [];
+		switch (job.status) {
+			case 'inprogress':
+				actions.push('Cancel');
+				break;
+			case 'readyforreview':
+				actions.push('Approve', 'Reject');
+				break;
+		}
+
+		if (actions.length === 0) {
+			return;
+		}
+
+		const quickInputService = this.instantiationService.invokeFunction(accessor => accessor.get(IQuickInputService));
+		const selectedAction = await quickInputService.pick(actions.map(action => ({ label: action })), {
+			placeHolder: `What would you like to do with ${job.name}?`
+		});
+
+		if (!selectedAction) {
+			return;
+		}
+
+		// Convert UI action to operation
+		let operation: string;
+		switch (selectedAction.label) {
+			case 'Cancel':
+				operation = 'cancel';
+				break;
+			case 'Approve':
+				operation = 'approve';
+				break;
+			case 'Reject':
+				operation = 'reject';
+				break;
+			default:
+				return;
+		}
+
+		// Execute the operation through the service
 		try {
-			await this.commandService.executeCommand(agent.operateCommand, {
-				jobId: job.id,
-				agentId: job.agentId,
-				job: job
-			});
+			await this.remoteCodingAgentsService.operateJob(job.agentId, job.id, operation);
 		} catch (error) {
-			// Command might not be registered, which is fine
-			console.log(`Command ${agent.operateCommand} not found - extensions can register this command to handle job clicks`);
+			console.error(`Failed to execute operation ${operation} on job ${job.id}:`, error);
 		}
 	}
 

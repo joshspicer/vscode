@@ -26,7 +26,7 @@ import { ILanguageModelToolsService } from '../../common/languageModelToolsServi
 import { IChatWidget, IChatWidgetService } from '../chat.js';
 import { getEditingSessionContext } from '../chatEditing/chatEditingActions.js';
 import { ACTION_ID_NEW_CHAT, CHAT_CATEGORY, handleCurrentEditingSession, handleModeSwitch } from './chatActions.js';
-import { IRemoteCodingAgent, IRemoteCodingAgentsService } from '../../../remoteCodingAgents/common/remoteCodingAgents.js';
+import { IRemoteCodingAgentsService, IRemoteCodingAgentProvider } from '../../../remoteCodingAgents/common/remoteCodingAgents.js';
 import { IQuickInputService } from '../../../../../platform/quickinput/common/quickInput.js';
 import { disposableTimeout } from '../../../../../base/common/async.js';
 
@@ -488,12 +488,12 @@ export class CreateRemoteAgentJobAction extends Action2 {
 
 			const input = context?.inputValue ?? widget.getInput();
 			const remoteCodingAgentService = accessor.get(IRemoteCodingAgentsService);
-			const agents = remoteCodingAgentService.getAgents();
-			const agent = await this.promptForRemoteAgent(accessor, agents);
-			if (!agent) {
+			const providers = remoteCodingAgentService.getProviders();
+			const provider = await this.promptForRemoteProvider(accessor, providers);
+			if (!provider) {
 				return;
 			}
-			await remoteCodingAgentService.createJob(input, agent.id);
+			await remoteCodingAgentService.createJob(input, provider.id);
 
 		} finally {
 			disposableTimeout(() => {
@@ -503,22 +503,22 @@ export class CreateRemoteAgentJobAction extends Action2 {
 		}
 	}
 
-	private async promptForRemoteAgent(accessor: ServicesAccessor, agents: IRemoteCodingAgent[]): Promise<IRemoteCodingAgent | undefined> {
-		if (agents.length === 0) {
+	private async promptForRemoteProvider(accessor: ServicesAccessor, providers: IRemoteCodingAgentProvider[]): Promise<IRemoteCodingAgentProvider | undefined> {
+		if (providers.length === 0) {
 			return undefined;
-		} else if (agents.length === 1) {
-			return agents[0];
+		} else if (providers.length === 1) {
+			return providers[0];
 		}
 
 		const quickInputService = accessor.get(IQuickInputService);
-		const selected = await quickInputService.pick(agents.map(agent => ({
-			label: agent.displayName,
-			id: agent.id,
-			description: agent.description,
+		const selected = await quickInputService.pick(providers.map(provider => ({
+			label: provider.displayName,
+			id: provider.id,
+			description: provider.description,
 		})), {
 			canPickMany: false,
 		});
-		return selected ? agents.find(agent => agent.id === selected.id) : undefined;
+		return selected ? providers.find(provider => provider.id === selected.id) : undefined;
 	}
 }
 
