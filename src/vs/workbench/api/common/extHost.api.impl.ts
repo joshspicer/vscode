@@ -1857,6 +1857,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			ChatErrorLevel: extHostTypes.ChatErrorLevel,
 			McpHttpServerDefinition: extHostTypes.McpHttpServerDefinition,
 			McpStdioServerDefinition: extHostTypes.McpStdioServerDefinition,
+			AgentStatus: extHostTypes.AgentStatus,
 			RemoteCodingJobChangeKind: extHostTypes.RemoteCodingJobChangeKind,
 			SettingsSearchResultKind: extHostTypes.SettingsSearchResultKind
 		};

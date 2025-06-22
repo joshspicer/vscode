@@ -6,6 +6,26 @@
 declare module 'vscode' {
 
 	/**
+	 * Represents the status of a remote coding agent job.
+	 */
+	export enum AgentStatus {
+		/**
+		 * The job is currently in progress.
+		 */
+		InProgress = 'inprogress',
+
+		/**
+		 * The job is ready for review.
+		 */
+		ReadyForReview = 'readyforreview',
+
+		/**
+		 * The job has been completed.
+		 */
+		Completed = 'completed'
+	}
+
+	/**
 	 * Represents a remote coding agent job.
 	 */
 	export interface RemoteCodingAgentJob {
@@ -22,8 +42,7 @@ declare module 'vscode' {
 		/**
 		 * Current status of the job.
 		 */
-		status: string;
-
+		status: AgentStatus;
 		/**
 		 * The agent that created this job.
 		 */

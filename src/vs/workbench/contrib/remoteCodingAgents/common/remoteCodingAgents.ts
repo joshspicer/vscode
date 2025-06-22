@@ -10,10 +10,16 @@ import { createDecorator } from '../../../../platform/instantiation/common/insta
 import { IDisposable } from '../../../../base/common/lifecycle.js';
 import { Event } from '../../../../base/common/event.js';
 
+export enum RemoteCodingAgentJobStatus {
+	InProgress = 'inprogress',
+	ReadyForReview = 'readyforreview',
+	Completed = 'completed'
+}
+
 export interface IRemoteCodingAgentJob {
 	id: string;
 	name: string;
-	status: string;
+	status: RemoteCodingAgentJobStatus;
 	agentId: string;
 	prompt: string;
 }

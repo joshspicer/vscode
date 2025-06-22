@@ -41,7 +41,7 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 		const job: vscode.RemoteCodingAgentJob = {
 			id: jobId,
 			name: JoshBotProvider.takeXWords(prompt, 3),
-			status: 'readyforreview',
+			status: vscode.AgentStatus.InProgress,
 			agentId: this.id,
 			prompt,
 		};
@@ -55,17 +55,17 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 			removed: []
 		});
 
-		// Simulate AI processing work (5-10 seconds)
+		// Simulate AI processing work (3-6 seconds)
 		setTimeout(() => {
 			if (this.jobs.has(jobId)) {
-				job.status = 'readyforreview';
+				job.status = vscode.AgentStatus.ReadyForReview;
 				this._onDidChangeJobs.fire({
 					added: [],
 					changed: [job],
 					removed: []
 				});
 			}
-		}, 5000 + Math.random() * 5000);
+		}, 3 + Math.random() * 6000);
 
 		return job;
 	}
@@ -92,18 +92,18 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 
 		switch (operation) {
 			case 'approve':
-				if (job.status === 'readyforreview') {
-					job.status = 'completed';
+				if (job.status === vscode.AgentStatus.ReadyForReview) {
+					job.status = vscode.AgentStatus.Completed;
 				}
 				break;
 			case 'reject':
-				if (job.status === 'readyforreview') {
-					job.status = 'inprogress';
+				if (job.status === vscode.AgentStatus.ReadyForReview) {
+					job.status = vscode.AgentStatus.InProgress;
 					job.prompt = '(trying again) ' + job.prompt;
 				}
 				// Simulated requeue
 				setTimeout(() => {
-					job.status = '';
+					job.status = vscode.AgentStatus.ReadyForReview;
 					this._onDidChangeJobs.fire({
 						added: [],
 						changed: [job],

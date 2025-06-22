@@ -10,7 +10,7 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { IViewDescriptor, IViewsRegistry, Extensions, ViewContainer, IViewDescriptorService } from '../../../common/views.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
-import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE } from '../common/remoteCodingAgents.js';
+import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE, RemoteCodingAgentJobStatus } from '../common/remoteCodingAgents.js';
 import { IViewletViewOptions } from '../../../browser/parts/views/viewsViewlet.js';
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -63,11 +63,11 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		}
 
 		// Create columns for each status
-		const statuses = ['inprogress', 'readyforreview', 'completed'];
+		const statuses = [RemoteCodingAgentJobStatus.InProgress, RemoteCodingAgentJobStatus.ReadyForReview, RemoteCodingAgentJobStatus.Completed];
 		const statusLabels = {
-			'inprogress': localize('inProgress', 'In Progress'),
-			'readyforreview': localize('readyForReview', 'Ready for Review'),
-			'completed': localize('completed', 'Completed')
+			[RemoteCodingAgentJobStatus.InProgress]: localize('inProgress', 'In Progress'),
+			[RemoteCodingAgentJobStatus.ReadyForReview]: localize('readyForReview', 'Ready for Review'),
+			[RemoteCodingAgentJobStatus.Completed]: localize('completed', 'Completed')
 		};
 
 		statuses.forEach(status => {
@@ -100,9 +100,9 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 			const jobs = await this.remoteCodingAgentsService.getJobs(true);
 
 			// Group jobs by status
-			const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
+			const jobsByStatus = new Map<RemoteCodingAgentJobStatus, IRemoteCodingAgentJob[]>();
 			jobs.forEach(job => {
-				const status = job.status || 'inprogress';
+				const status = job.status || RemoteCodingAgentJobStatus.InProgress;
 				if (!jobsByStatus.has(status)) {
 					jobsByStatus.set(status, []);
 				}
@@ -137,9 +137,9 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 			const jobs = await this.remoteCodingAgentsService.getJobs(false);
 
 			// Group jobs by status
-			const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
+			const jobsByStatus = new Map<RemoteCodingAgentJobStatus, IRemoteCodingAgentJob[]>();
 			jobs.forEach(job => {
-				const status = job.status || 'inprogress';
+				const status = job.status || RemoteCodingAgentJobStatus.InProgress;
 				if (!jobsByStatus.has(status)) {
 					jobsByStatus.set(status, []);
 				}
@@ -202,10 +202,10 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		// Show job operation options
 		const actions: string[] = [];
 		switch (job.status) {
-			case 'inprogress':
+			case RemoteCodingAgentJobStatus.InProgress:
 				actions.push('Cancel');
 				break;
-			case 'readyforreview':
+			case RemoteCodingAgentJobStatus.ReadyForReview:
 				actions.push('Approve', 'Reject');
 				break;
 		}

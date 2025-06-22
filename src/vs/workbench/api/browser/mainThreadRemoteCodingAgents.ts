@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Disposable, DisposableMap } from '../../../base/common/lifecycle.js';
-import { IRemoteCodingAgentsService, IRemoteCodingAgentProvider, IRemoteCodingAgentJob, IRemoteCodingJobsChangeEvent } from '../../contrib/remoteCodingAgents/common/remoteCodingAgents.js';
+import { IRemoteCodingAgentsService, IRemoteCodingAgentProvider, IRemoteCodingAgentJob, IRemoteCodingJobsChangeEvent, RemoteCodingAgentJobStatus } from '../../contrib/remoteCodingAgents/common/remoteCodingAgents.js';
 import { extHostNamedCustomer, IExtHostContext } from '../../services/extensions/common/extHostCustomers.js';
 import { ExtHostContext, ExtHostRemoteCodingAgentsShape, MainThreadRemoteCodingAgentsShape, MainContext, IRemoteCodingAgentJobDto, IRemoteCodingJobsChangeEventDto } from '../common/extHost.protocol.js';
 import { Event, Emitter } from '../../../base/common/event.js';
@@ -63,7 +63,7 @@ class MainThreadRemoteCodingAgentProvider implements IRemoteCodingAgentProvider 
 		return {
 			id: jobDto.id,
 			name: jobDto.name,
-			status: jobDto.status,
+			status: jobDto.status as RemoteCodingAgentJobStatus,
 			agentId: jobDto.agentId,
 			prompt: jobDto.prompt
 		};

@@ -64,6 +64,12 @@ export enum TerminalQuickFixType {
 	Command = 3
 }
 
+export enum AgentStatus {
+	InProgress = 'inprogress',
+	ReadyForReview = 'readyforreview',
+	Completed = 'completed'
+}
+
 export enum RemoteCodingJobChangeKind {
 	Added = 1,
 	Changed = 2,
