@@ -30,6 +30,7 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	private columns: Map<string, HTMLElement> = new Map();
 	private jobElements: Map<string, HTMLElement> = new Map();
 	private refreshTimer: IntervalTimer = new IntervalTimer();
+	private isRefreshing: boolean = false;
 
 	constructor(
 		options: IViewletViewOptions,
@@ -66,6 +67,7 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		this.refreshJobs();
 
 		// Start timer to refresh jobs every 5 seconds
+		// TODO: API for extensions to push updates
 		this.refreshTimer.cancelAndSet(() => {
 			this.refreshJobs();
 		}, 5000);
@@ -110,67 +112,77 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	}
 
 	private async refreshJobs(): Promise<void> {
-		if (!this.kanbanContainer) {
+		if (!this.kanbanContainer || this.isRefreshing) {
 			return;
 		}
 
-		// Clear existing jobs
-		this.columns.forEach(column => clearNode(column));
-		this.jobElements.clear();
+		this.isRefreshing = true;
+		try {
+			// Clear existing jobs
+			this.columns.forEach(column => clearNode(column));
+			this.jobElements.clear();
 
-		// Get jobs from service with refresh=true for manual refresh
-		const jobs = await this.remoteCodingAgentsService.getJobs(true);
+			// Get jobs from service with refresh=true for manual refresh
+			const jobs = await this.remoteCodingAgentsService.getJobs(true);
 
-		// Group jobs by status
-		const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
-		jobs.forEach(job => {
-			const status = job.status || 'created';
-			if (!jobsByStatus.has(status)) {
-				jobsByStatus.set(status, []);
-			}
-			jobsByStatus.get(status)!.push(job);
-		});
+			// Group jobs by status
+			const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
+			jobs.forEach(job => {
+				const status = job.status || 'inprogress';
+				if (!jobsByStatus.has(status)) {
+					jobsByStatus.set(status, []);
+				}
+				jobsByStatus.get(status)!.push(job);
+			});
 
-		// Render jobs in columns
-		jobsByStatus.forEach((statusJobs, status) => {
-			const column = this.columns.get(status);
-			if (column) {
-				statusJobs.forEach(job => this.createJobCard(job, column));
-				this.updateColumnCount(status, statusJobs.length);
-			}
-		});
+			// Render jobs in columns
+			jobsByStatus.forEach((statusJobs, status) => {
+				const column = this.columns.get(status);
+				if (column) {
+					statusJobs.forEach(job => this.createJobCard(job, column));
+					this.updateColumnCount(status, statusJobs.length);
+				}
+			});
+		} finally {
+			this.isRefreshing = false;
+		}
 	}
 
 	private async refreshJobsFromCache(): Promise<void> {
-		if (!this.kanbanContainer) {
+		if (!this.kanbanContainer || this.isRefreshing) {
 			return;
 		}
 
-		// Clear existing jobs
-		this.columns.forEach(column => clearNode(column));
-		this.jobElements.clear();
+		this.isRefreshing = true;
+		try {
+			// Clear existing jobs
+			this.columns.forEach(column => clearNode(column));
+			this.jobElements.clear();
 
-		// Get jobs from cache (no refresh)
-		const jobs = await this.remoteCodingAgentsService.getJobs(false);
+			// Get jobs from cache (no refresh)
+			const jobs = await this.remoteCodingAgentsService.getJobs(false);
 
-		// Group jobs by status
-		const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
-		jobs.forEach(job => {
-			const status = job.status;
-			if (!jobsByStatus.has(status)) {
-				jobsByStatus.set(status, []);
-			}
-			jobsByStatus.get(status)!.push(job);
-		});
+			// Group jobs by status
+			const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
+			jobs.forEach(job => {
+				const status = job.status || 'inprogress';
+				if (!jobsByStatus.has(status)) {
+					jobsByStatus.set(status, []);
+				}
+				jobsByStatus.get(status)!.push(job);
+			});
 
-		// Render jobs in columns
-		jobsByStatus.forEach((statusJobs, status) => {
-			const column = this.columns.get(status);
-			if (column) {
-				statusJobs.forEach(job => this.createJobCard(job, column));
-				this.updateColumnCount(status, statusJobs.length);
-			}
-		});
+			// Render jobs in columns
+			jobsByStatus.forEach((statusJobs, status) => {
+				const column = this.columns.get(status);
+				if (column) {
+					statusJobs.forEach(job => this.createJobCard(job, column));
+					this.updateColumnCount(status, statusJobs.length);
+				}
+			});
+		} finally {
+			this.isRefreshing = false;
+		}
 	}
 
 	private createJobCard(job: IRemoteCodingAgentJob, container: HTMLElement): void {

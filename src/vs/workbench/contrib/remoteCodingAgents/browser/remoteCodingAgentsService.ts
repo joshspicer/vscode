@@ -61,6 +61,9 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 		const previousJobsCount = this._jobs.length;
 		const previousJobs = this._jobs.map(j => ({ id: j.id, status: j.status }));
 
+		// Track which jobs are still present
+		const currentJobIds = new Set<string>();
+
 		for (const agent of this._agents) {
 			if (agent.statusCommand) {
 				try {
@@ -68,6 +71,8 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 					if (Array.isArray(jobs)) {
 						for (const job of jobs) {
 							job.agentId = agent.id;
+							const jobKey = `${agent.id}-${job.id}`;
+							currentJobIds.add(jobKey);
 							const existing = this._jobs.find(j => j.id === job.id && j.agentId === agent.id);
 							if (existing) {
 								existing.status = job.status;
@@ -81,6 +86,12 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 				}
 			}
 		}
+
+		// Remove jobs that are no longer returned from any agent
+		this._jobs = this._jobs.filter(job => {
+			const jobKey = `${job.agentId}-${job.id}`;
+			return currentJobIds.has(jobKey);
+		});
 
 		// Check if jobs changed
 		const currentJobs = this._jobs.map(j => ({ id: j.id, status: j.status }));
