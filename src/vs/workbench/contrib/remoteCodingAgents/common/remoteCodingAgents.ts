@@ -31,6 +31,9 @@ export const REMOTE_CODING_AGENTS_CONTAINER_ID = 'workbench.view.remoteCodingAge
 export const REMOTE_CODING_AGENTS_VIEW_ID = 'workbench.views.remoteCodingAgents.data';
 export const REMOTE_CODING_AGENTS_VIEW_ICON = registerIcon('remote-coding-agents-view-icon', Codicon.cloudUpload, localize('remoteCodingAgentsViewIcon', 'View icon of the remote coding agents view.'));
 
+// Command IDs that extensions can implement
+export const REMOTE_CODING_AGENTS_JOB_CLICKED_COMMAND = 'remoteCodingAgents.jobClicked';
+
 export const IRemoteCodingAgentsService = createDecorator<IRemoteCodingAgentsService>('remoteCodingAgentsService');
 export interface IRemoteCodingAgentsService {
 	_serviceBrand: undefined;

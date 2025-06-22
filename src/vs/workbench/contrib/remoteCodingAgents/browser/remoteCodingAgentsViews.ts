@@ -10,7 +10,7 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { IViewDescriptor, IViewsRegistry, Extensions, ViewContainer, IViewDescriptorService } from '../../../common/views.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
-import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE } from '../common/remoteCodingAgents.js';
+import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE, REMOTE_CODING_AGENTS_JOB_CLICKED_COMMAND } from '../common/remoteCodingAgents.js';
 import { IViewletViewOptions } from '../../../browser/parts/views/viewsViewlet.js';
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -19,9 +19,10 @@ import { IContextKeyService } from '../../../../platform/contextkey/common/conte
 import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { IThemeService } from '../../../../platform/theme/common/themeService.js';
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
-import { append, $, clearNode } from '../../../../base/browser/dom.js';
+import { append, $, clearNode, addDisposableListener } from '../../../../base/browser/dom.js';
 import { Button } from '../../../../base/browser/ui/button/button.js';
 import { defaultButtonStyles } from '../../../../platform/theme/browser/defaultStyles.js';
+import { ICommandService } from '../../../../platform/commands/common/commands.js';
 
 class RemoteCodingAgentsKanbanView extends ViewPane {
 	private kanbanContainer: HTMLElement | undefined;
@@ -31,6 +32,7 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	constructor(
 		options: IViewletViewOptions,
 		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
+		@ICommandService private readonly commandService: ICommandService,
 		@IKeybindingService keybindingService: IKeybindingService,
 		@IContextMenuService contextMenuService: IContextMenuService,
 		@IConfigurationService configurationService: IConfigurationService,
@@ -47,8 +49,10 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	protected override renderBody(container: HTMLElement): void {
 		super.renderBody(container);
 
-		this.kanbanContainer = append(container, $('.remote-coding-agents-kanban'));
+		const viewContainer = append(container, $('.remote-coding-agents-view'));
+		this.kanbanContainer = append(viewContainer, $('.remote-coding-agents-kanban'));
 		this.createKanbanBoard();
+		this.createToolbar(viewContainer);
 		this.refreshJobs();
 	}
 
@@ -79,6 +83,15 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 			const jobsContainer = append(column, $('.kanban-column-jobs'));
 			this.columns.set(status, jobsContainer);
 		});
+	}
+
+	private createToolbar(container: HTMLElement): void {
+		const toolbar = append(container, $('.kanban-toolbar'));
+
+		const refreshButton = this._register(new Button(toolbar, defaultButtonStyles));
+		refreshButton.label = localize('refresh', 'Refresh');
+		refreshButton.element.title = localize('refreshTooltip', 'Refresh jobs');
+		this._register(refreshButton.onDidClick(() => this.refreshJobs()));
 	}
 
 	private async refreshJobs(): Promise<void> {
@@ -117,6 +130,9 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		const card = append(container, $('.kanban-job-card'));
 		card.setAttribute('data-job-id', job.id);
 		card.setAttribute('data-agent-id', job.agentId);
+		card.setAttribute('role', 'button');
+		card.setAttribute('tabindex', '0');
+		card.style.cursor = 'pointer';
 
 		const header = append(card, $('.kanban-job-header'));
 		const title = append(header, $('.kanban-job-title'));
@@ -127,32 +143,33 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 
 		const content = append(card, $('.kanban-job-content'));
 		const prompt = append(content, $('.kanban-job-prompt'));
-		// Note: assuming jobs have a prompt property, may need to adjust based on actual interface
-		const promptText = (job as any).prompt || 'No description available';
+		const promptText = job.prompt || 'No description available';
 		prompt.textContent = promptText.length > 100 ? promptText.substring(0, 100) + '...' : promptText;
 
-		const actions = append(card, $('.kanban-job-actions'));
-
-		// Add status-specific actions
-		if (job.status === 'created') {
-			const startButton = this._register(new Button(actions, defaultButtonStyles));
-			startButton.label = localize('start', 'Start');
-			this._register(startButton.onDidClick(() => this.operateJob(job, 'start')));
-		} else if (job.status === 'in-progress') {
-			const reviewButton = this._register(new Button(actions, defaultButtonStyles));
-			reviewButton.label = localize('readyForReview', 'Ready for Review');
-			this._register(reviewButton.onDidClick(() => this.operateJob(job, 'ready-for-review')));
-		} else if (job.status === 'ready-for-review') {
-			const approveButton = this._register(new Button(actions, defaultButtonStyles));
-			approveButton.label = localize('approve', 'Approve');
-			this._register(approveButton.onDidClick(() => this.operateJob(job, 'approve')));
-
-			const rejectButton = this._register(new Button(actions, defaultButtonStyles));
-			rejectButton.label = localize('reject', 'Reject');
-			this._register(rejectButton.onDidClick(() => this.operateJob(job, 'reject')));
-		}
+		// Make the entire card clickable
+		this._register(addDisposableListener(card, 'click', () => this.onJobCardClick(job)));
+		this._register(addDisposableListener(card, 'keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				this.onJobCardClick(job);
+			}
+		}));
 
 		this.jobElements.set(job.id, card);
+	}
+
+	private async onJobCardClick(job: IRemoteCodingAgentJob): Promise<void> {
+		// Fire a command that implementing extensions can handle
+		try {
+			await this.commandService.executeCommand(REMOTE_CODING_AGENTS_JOB_CLICKED_COMMAND, {
+				jobId: job.id,
+				agentId: job.agentId,
+				job: job
+			});
+		} catch (error) {
+			// Command might not be registered, which is fine
+			console.log(`Command ${REMOTE_CODING_AGENTS_JOB_CLICKED_COMMAND} not found - extensions can register this command to handle job clicks`);
+		}
 	}
 
 	private updateColumnCount(status: string, count: number): void {
@@ -160,16 +177,6 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		const countElement = column?.querySelector('.kanban-column-count');
 		if (countElement) {
 			countElement.textContent = count.toString();
-		}
-	}
-
-	private async operateJob(job: IRemoteCodingAgentJob, operation: string): Promise<void> {
-		try {
-			await this.remoteCodingAgentsService.operateJob(job.agentId, job.id, operation);
-			// Refresh the view after operation
-			await this.refreshJobs();
-		} catch (error) {
-			console.error('Failed to operate on job:', error);
 		}
 	}
 

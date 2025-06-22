@@ -3,13 +3,36 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
+.remote-coding-agents-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
 .remote-coding-agents-kanban {
 	display: flex;
-	height: 100%;
+	flex: 1;
 	padding: 8px;
 	gap: 12px;
 	overflow-x: auto;
 	overflow-y: hidden;
+}
+
+.kanban-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 8px 12px;
+	background: var(--vscode-panel-background);
+	border-top: 1px solid var(--vscode-widget-border);
+	gap: 8px;
+}
+
+.kanban-toolbar .monaco-button {
+	font-size: 12px;
+	padding: 4px 12px;
+	height: 26px;
+	min-height: 26px;
 }
 
 .kanban-column {
@@ -81,6 +104,11 @@
 	transform: translateY(0);
 }
 
+.kanban-job-card:focus {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: 2px;
+}
+
 .kanban-job-header {
 	display: flex;
 	flex-direction: column;
@@ -113,19 +141,6 @@
 	line-height: 1.4;
 	word-wrap: break-word;
 	overflow-wrap: break-word;
-}
-
-.kanban-job-actions {
-	display: flex;
-	gap: 6px;
-	margin-top: 4px;
-}
-
-.kanban-job-actions .monaco-button {
-	font-size: 11px;
-	padding: 4px 8px;
-	height: auto;
-	min-height: 24px;
 }
 
 /* Status-specific column styling */
