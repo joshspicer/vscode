@@ -1808,6 +1808,20 @@ have to be updated for changes to the rules above, or to support more deeply nes
 	display: initial;
 }
 
+.interactive-session .chat-remote-job {
+	display: initial;
+	position: absolute;
+	bottom: 7px;
+	right: 50px;
+	border-radius: 100%;
+	width: 27px;
+	height: 27px;
+
+	.codicon {
+		margin: 0px;
+	}
+}
+
 .chat-quota-error-widget {
 	padding: 8px 12px;
 	display: flex;

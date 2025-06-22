@@ -541,8 +541,15 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		remoteJobButton.label = `$(${Codicon.cloudUpload.id})`;
 		remoteJobButton.setTitle(localize('remoteJobButtonLabel', "Create Remote Job"));
 		this._register(remoteJobButton.onDidClick(() => {
+			console.log('Remote job button clicked!');
 			const input = this.getInput();
-			this.remoteCodingAgentsService.createJob(input);
+			console.log('Input value:', input);
+			try {
+				this.remoteCodingAgentsService.createJob(input);
+				console.log('createJob called successfully');
+			} catch (error) {
+				console.error('Error calling createJob:', error);
+			}
 		}));
 
 		this._register(this.editorOptions.onDidChange(() => this.onDidStyleChange()));
