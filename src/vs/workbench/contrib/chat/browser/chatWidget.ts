@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as dom from '../../../../base/browser/dom.js';
-import { Button } from '../../../../base/browser/ui/button/button.js';
+import { Button, ButtonWithDropdown } from '../../../../base/browser/ui/button/button.js';
 import { ITreeContextMenuEvent, ITreeElement } from '../../../../base/browser/ui/tree/tree.js';
 import { assert } from '../../../../base/common/assert.js';
 import { disposableTimeout, timeout } from '../../../../base/common/async.js';
@@ -25,6 +25,7 @@ import { ICodeEditor } from '../../../../editor/browser/editorBrowser.js';
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
 import { localize } from '../../../../nls.js';
 import { MenuId } from '../../../../platform/actions/common/actions.js';
+import { IAction, toAction } from '../../../../base/common/actions.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IContextKey, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -531,26 +532,8 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			this.scrollToEnd();
 		}));
 
-		const remoteJobButton = this._register(new Button(this.listContainer, {
-			supportIcons: true,
-			buttonBackground: asCssVariable(buttonSecondaryBackground),
-			buttonForeground: asCssVariable(buttonSecondaryForeground),
-			buttonHoverBackground: asCssVariable(buttonSecondaryHoverBackground),
-		}));
-		remoteJobButton.element.classList.add('chat-remote-job');
-		remoteJobButton.label = `$(${Codicon.cloudUpload.id})`;
-		remoteJobButton.setTitle(localize('remoteJobButtonLabel', "Create Remote Job"));
-		this._register(remoteJobButton.onDidClick(() => {
-			console.log('Remote job button clicked!');
-			const input = this.getInput();
-			console.log('Input value:', input);
-			try {
-				this.remoteCodingAgentsService.createJob(input);
-				console.log('createJob called successfully');
-			} catch (error) {
-				console.error('Error calling createJob:', error);
-			}
-		}));
+		// Create remote job button with dropdown support
+		this.createRemoteJobButton();
 
 		this._register(this.editorOptions.onDidChange(() => this.onDidStyleChange()));
 		this.onDidStyleChange();
@@ -1652,6 +1635,64 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 		// add to attached list to make the instructions sticky
 		//this.inputPart.attachmentModel.addContext(...computer.autoAddedInstructions);
+	}
+
+	private createRemoteJobButton(): void {
+		const agents = this.remoteCodingAgentsService.getAgents();
+
+		if (agents.length === 0) {
+			// No agents available, don't show button
+			return;
+		}
+
+		if (agents.length === 1) {
+			// Single agent, use regular button
+			const remoteJobButton = this._register(new Button(this.listContainer, {
+				supportIcons: true,
+				buttonBackground: asCssVariable(buttonSecondaryBackground),
+				buttonForeground: asCssVariable(buttonSecondaryForeground),
+				buttonHoverBackground: asCssVariable(buttonSecondaryHoverBackground),
+			}));
+			remoteJobButton.element.classList.add('chat-remote-job');
+			remoteJobButton.label = `$(${Codicon.cloudUpload.id})`;
+			remoteJobButton.setTitle(localize('remoteJobButtonLabel', "Create Remote Job with {0}", agents[0].displayName));
+			this._register(remoteJobButton.onDidClick(() => {
+				const input = this.getInput();
+				this.remoteCodingAgentsService.createJob(input, agents[0].id);
+			}));
+		} else {
+			// Multiple agents, use button with dropdown
+			const actions: IAction[] = agents.map(agent => toAction({
+				id: `remote-job-${agent.id}`,
+				label: agent.displayName,
+				tooltip: agent.description || agent.displayName,
+				enabled: true,
+				run: async () => {
+					const input = this.getInput();
+					await this.remoteCodingAgentsService.createJob(input, agent.id);
+				}
+			}));
+
+			const remoteJobButton = this._register(new ButtonWithDropdown(this.listContainer, {
+				actions: actions,
+				addPrimaryActionToDropdown: false,
+				contextMenuProvider: this.contextMenuService,
+				supportIcons: true,
+				title: localize('remoteJobButtonDropdownLabel', "Create Remote Job"),
+				buttonBackground: asCssVariable(buttonSecondaryBackground),
+				buttonForeground: asCssVariable(buttonSecondaryForeground),
+				buttonHoverBackground: asCssVariable(buttonSecondaryHoverBackground),
+			}));
+
+			remoteJobButton.element.classList.add('chat-remote-job');
+			remoteJobButton.primaryButton.label = `$(${Codicon.cloudUpload.id})`;
+
+			// Primary button action (use first agent as default)
+			this._register(remoteJobButton.primaryButton.onDidClick(() => {
+				const input = this.getInput();
+				this.remoteCodingAgentsService.createJob(input, agents[0].id);
+			}));
+		}
 	}
 }
 

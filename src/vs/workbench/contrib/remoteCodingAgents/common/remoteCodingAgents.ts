@@ -41,7 +41,7 @@ export interface IRemoteCodingAgentsService {
 	registerAgent(agent: IRemoteCodingAgent): IDisposable;
 	getAgents(): IRemoteCodingAgent[];
 
-	createJob(input: string, agentId?: string): Promise<IRemoteCodingAgentJob | undefined>;
+	createJob(input: string, agentId: string): Promise<IRemoteCodingAgentJob | undefined>;
 	getJobs(): Promise<IRemoteCodingAgentJob[]>;
 	operateJob(agentId: string, jobId: string, operation: string): Promise<void>;
 }

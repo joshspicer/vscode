@@ -26,7 +26,8 @@ import { ILanguageModelToolsService } from '../../common/languageModelToolsServi
 import { IChatWidget, IChatWidgetService } from '../chat.js';
 import { getEditingSessionContext } from '../chatEditing/chatEditingActions.js';
 import { ACTION_ID_NEW_CHAT, CHAT_CATEGORY, handleCurrentEditingSession, handleModeSwitch } from './chatActions.js';
-import { IRemoteCodingAgentsService } from '../../../remoteCodingAgents/common/remoteCodingAgents.js';
+import { IRemoteCodingAgent, IRemoteCodingAgentsService } from '../../../remoteCodingAgents/common/remoteCodingAgents.js';
+import { IQuickInputService } from '../../../../../platform/quickinput/common/quickInput.js';
 
 export interface IVoiceChatExecuteActionContext {
 	readonly disableTimeout?: boolean;
@@ -473,10 +474,34 @@ export class CreateRemoteAgentJobAction extends Action2 {
 			return;
 		}
 		const input = context?.inputValue ?? widget.getInput();
-		const remoteService = accessor.get(IRemoteCodingAgentsService);
-		await remoteService.createJob(input);
+		const remoteCodingAgentService = accessor.get(IRemoteCodingAgentsService);
+		const agents = remoteCodingAgentService.getAgents();
+		const agent = await this.promptForRemoteAgent(accessor, agents);
+		if (!agent) {
+			return;
+		}
+		await remoteCodingAgentService.createJob(input, agent.id);
+	}
+
+	private async promptForRemoteAgent(accessor: ServicesAccessor, agents: IRemoteCodingAgent[]): Promise<IRemoteCodingAgent | undefined> {
+		if (agents.length === 0) {
+			return undefined;
+		} else if (agents.length === 1) {
+			return agents[0];
+		}
+
+		const quickInputService = accessor.get(IQuickInputService);
+		const selected = await quickInputService.pick(agents.map(agent => ({
+			label: agent.displayName,
+			id: agent.id,
+			description: agent.description,
+		})), {
+			canPickMany: false,
+		});
+		return selected ? agents.find(agent => agent.id === selected.id) : undefined;
 	}
 }
+
 
 class SendToNewChatAction extends Action2 {
 	constructor() {

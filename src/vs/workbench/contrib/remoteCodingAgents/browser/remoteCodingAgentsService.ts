@@ -26,9 +26,9 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 		return [...this._agents];
 	}
 
-	async createJob(input: string, agentId?: string): Promise<IRemoteCodingAgentJob | undefined> {
-		console.log('createJob called with input:', input, 'agentId:', agentId);
+	async createJob(input: string, agentId: string): Promise<IRemoteCodingAgentJob | undefined> {
 		console.log('Available agents:', this._agents);
+		console.log('createJob called with input:', input, 'agentId:', agentId);
 		const agent = agentId ? this._agents.find(a => a.id === agentId) : this._agents[0];
 		if (!agent) {
 			console.log('No agent found');
