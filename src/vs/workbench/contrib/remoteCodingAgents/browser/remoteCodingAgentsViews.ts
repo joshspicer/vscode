@@ -11,7 +11,7 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { IViewDescriptor, IViewsRegistry, Extensions, ViewContainer, IViewDescriptorService } from '../../../common/views.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
-import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE, REMOTE_CODING_AGENTS_JOB_CLICKED_COMMAND } from '../common/remoteCodingAgents.js';
+import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE } from '../common/remoteCodingAgents.js';
 import { IViewletViewOptions } from '../../../browser/parts/views/viewsViewlet.js';
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -205,16 +205,24 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	}
 
 	private async onJobCardClick(job: IRemoteCodingAgentJob): Promise<void> {
+
+		// Look up the command for the given agetn
+		const agent = this.remoteCodingAgentsService.getAgents().find(a => a.id === job.agentId);
+		if (!agent || !agent.operateCommand) {
+			console.warn(`No command found for agent ${job.agentId}`);
+			return;
+		}
+
 		// Fire a command that implementing extensions can handle
 		try {
-			await this.commandService.executeCommand(REMOTE_CODING_AGENTS_JOB_CLICKED_COMMAND, {
+			await this.commandService.executeCommand(agent.operateCommand, {
 				jobId: job.id,
 				agentId: job.agentId,
 				job: job
 			});
 		} catch (error) {
 			// Command might not be registered, which is fine
-			console.log(`Command ${REMOTE_CODING_AGENTS_JOB_CLICKED_COMMAND} not found - extensions can register this command to handle job clicks`);
+			console.log(`Command ${agent.operateCommand} not found - extensions can register this command to handle job clicks`);
 		}
 	}
 

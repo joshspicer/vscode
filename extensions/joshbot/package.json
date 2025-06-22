@@ -36,11 +36,6 @@
 				"command": "joshbot.operateJob",
 				"title": "Operate JoshBot Job",
 				"category": "JoshBot"
-			},
-			{
-				"command": "remoteCodingAgents.jobClicked",
-				"title": "Handle Job Click",
-				"category": "JoshBot"
 			}
 		],
 		"remoteCodingAgents": [

@@ -110,19 +110,8 @@ export function activate(context: vscode.ExtensionContext) {
 		return await joshBotAgent.getAllJobs();
 	});
 
-
-	// Register command to operate on a job
-	const operateJobCommand = vscode.commands.registerCommand('joshbot.operateJob', async (jobId: string, operation: string) => {
-		try {
-			await joshBotAgent.operateJob(jobId, operation);
-		} catch (error) {
-			vscode.window.showErrorMessage(`Operation failed: ${error}`);
-			throw error;
-		}
-	});
-
 	// Register command to handle job clicks from the kanban view
-	const jobClickedCommand = vscode.commands.registerCommand('remoteCodingAgents.jobClicked', async (args: any) => {
+	const operateJobCommand = vscode.commands.registerCommand('joshbot.operateJob', async (args: any) => {
 		const { jobId, agentId, job } = args;
 
 		if (agentId !== 'joshbot') {
@@ -164,7 +153,6 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(createJobCommand);
 	context.subscriptions.push(getJobStatusCommand);
 	context.subscriptions.push(operateJobCommand);
-	context.subscriptions.push(jobClickedCommand);
 
 	// // Create some sample jobs for demonstration
 	// setTimeout(async () => {
