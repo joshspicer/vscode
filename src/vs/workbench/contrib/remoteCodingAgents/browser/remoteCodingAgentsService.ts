@@ -76,8 +76,8 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 							}
 						}
 					}
-				} catch {
-					// ignore
+				} catch (e: any) {
+					console.warn(`Failed to fetch jobs for agent ${agent.id} using command ${agent.statusCommand}: ${e.message}`);
 				}
 			}
 		}

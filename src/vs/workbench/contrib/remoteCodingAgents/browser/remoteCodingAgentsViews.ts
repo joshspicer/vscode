@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Disposable } from '../../../../base/common/lifecycle.js';
+import { IntervalTimer } from '../../../../base/common/async.js';
 import { localize } from '../../../../nls.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
@@ -28,6 +29,7 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	private kanbanContainer: HTMLElement | undefined;
 	private columns: Map<string, HTMLElement> = new Map();
 	private jobElements: Map<string, HTMLElement> = new Map();
+	private refreshTimer: IntervalTimer = new IntervalTimer();
 
 	constructor(
 		options: IViewletViewOptions,
@@ -45,6 +47,9 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
 
+		// Register the timer for disposal
+		this._register(this.refreshTimer);
+
 		// Listen for job changes and refresh UI automatically
 		this._register(this.remoteCodingAgentsService.onJobsChanged(() => {
 			this.refreshJobsFromCache();
@@ -59,6 +64,11 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		this.createKanbanBoard();
 		this.createToolbar(viewContainer);
 		this.refreshJobs();
+
+		// Start timer to refresh jobs every 5 seconds
+		this.refreshTimer.cancelAndSet(() => {
+			this.refreshJobs();
+		}, 5000);
 	}
 
 	private createKanbanBoard(): void {
@@ -67,11 +77,11 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		}
 
 		// Create columns for each status
-		const statuses = ['created', 'in-progress', 'ready-for-review'];
+		const statuses = ['inprogress', 'readyforreview', 'completed'];
 		const statusLabels = {
-			'created': localize('created', 'Created'),
-			'in-progress': localize('inProgress', 'In Progress'),
-			'ready-for-review': localize('readyForReview', 'Ready for Review')
+			'inprogress': localize('inProgress', 'In Progress'),
+			'readyforreview': localize('readyForReview', 'Ready for Review'),
+			'completed': localize('completed', 'Completed')
 		};
 
 		statuses.forEach(status => {
@@ -146,7 +156,7 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		// Group jobs by status
 		const jobsByStatus = new Map<string, IRemoteCodingAgentJob[]>();
 		jobs.forEach(job => {
-			const status = job.status || 'created';
+			const status = job.status;
 			if (!jobsByStatus.has(status)) {
 				jobsByStatus.set(status, []);
 			}

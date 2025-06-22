@@ -23,7 +23,7 @@
 				"category": "JoshBot"
 			},
 			{
-				"command": "joshbot.showAllJobs",
+				"command": "joshbot.getJobs",
 				"title": "Show All JoshBot Jobs",
 				"category": "JoshBot"
 			},
@@ -49,7 +49,7 @@
 				"displayName": "JoshBot",
 				"description": "AI-powered coding assistant that can generate, review, and improve code",
 				"createCommand": "joshbot.createJob",
-				"statusCommand": "joshbot.getJobStatus",
+				"statusCommand": "joshbot.getJobs",
 				"operateCommand": "joshbot.operateJob"
 			}
 		]
