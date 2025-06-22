@@ -12,7 +12,7 @@ import { localize, localize2 } from '../../../../../nls.js';
 import { Action2, MenuId, registerAction2 } from '../../../../../platform/actions/common/actions.js';
 import { ICommandService } from '../../../../../platform/commands/common/commands.js';
 import { IConfigurationService } from '../../../../../platform/configuration/common/configuration.js';
-import { ContextKeyExpr } from '../../../../../platform/contextkey/common/contextkey.js';
+import { ContextKeyExpr, IContextKeyService } from '../../../../../platform/contextkey/common/contextkey.js';
 import { IDialogService } from '../../../../../platform/dialogs/common/dialogs.js';
 import { IInstantiationService } from '../../../../../platform/instantiation/common/instantiation.js';
 import { KeybindingWeight } from '../../../../../platform/keybinding/common/keybindingsRegistry.js';
@@ -28,6 +28,7 @@ import { getEditingSessionContext } from '../chatEditing/chatEditingActions.js';
 import { ACTION_ID_NEW_CHAT, CHAT_CATEGORY, handleCurrentEditingSession, handleModeSwitch } from './chatActions.js';
 import { IRemoteCodingAgent, IRemoteCodingAgentsService } from '../../../remoteCodingAgents/common/remoteCodingAgents.js';
 import { IQuickInputService } from '../../../../../platform/quickinput/common/quickInput.js';
+import { disposableTimeout } from '../../../../../base/common/async.js';
 
 export interface IVoiceChatExecuteActionContext {
 	readonly disableTimeout?: boolean;
@@ -450,7 +451,8 @@ export class CreateRemoteAgentJobAction extends Action2 {
 	constructor() {
 		const precondition = ContextKeyExpr.and(
 			ContextKeyExpr.or(ChatContextKeys.inputHasText, ChatContextKeys.hasPromptFile),
-			whenNotInProgressOrPaused
+			whenNotInProgressOrPaused,
+			ChatContextKeys.remoteJobCreating.negate(),
 		);
 
 		super({
@@ -458,6 +460,11 @@ export class CreateRemoteAgentJobAction extends Action2 {
 			title: localize2('actions.chat.createRemoteJob', "Create Remote Job"),
 			icon: Codicon.cloudUpload,
 			precondition,
+			toggled: {
+				condition: ChatContextKeys.remoteJobCreating,
+				icon: Codicon.sync,
+				tooltip: localize('remoteJobCreating', "Remote job is being created"),
+			},
 			menu: {
 				id: MenuId.ChatExecute,
 				group: 'navigation',
@@ -467,20 +474,33 @@ export class CreateRemoteAgentJobAction extends Action2 {
 	}
 
 	async run(accessor: ServicesAccessor, ...args: any[]) {
-		const context: IChatExecuteActionContext | undefined = args[0];
-		const widgetService = accessor.get(IChatWidgetService);
-		const widget = context?.widget ?? widgetService.lastFocusedWidget;
-		if (!widget) {
-			return;
+		const contextKeyService = accessor.get(IContextKeyService);
+		const remoteJobCreatingKey = ChatContextKeys.remoteJobCreating.bindTo(contextKeyService);
+		try {
+			const context: IChatExecuteActionContext | undefined = args[0];
+			const widgetService = accessor.get(IChatWidgetService);
+			const widget = context?.widget ?? widgetService.lastFocusedWidget;
+			if (!widget) {
+				return;
+			}
+
+			remoteJobCreatingKey.set(true);
+
+			const input = context?.inputValue ?? widget.getInput();
+			const remoteCodingAgentService = accessor.get(IRemoteCodingAgentsService);
+			const agents = remoteCodingAgentService.getAgents();
+			const agent = await this.promptForRemoteAgent(accessor, agents);
+			if (!agent) {
+				return;
+			}
+			await remoteCodingAgentService.createJob(input, agent.id);
+
+		} finally {
+			disposableTimeout(() => {
+				// Clear the input after a short delay to allow the job to be create
+				remoteJobCreatingKey.set(false);
+			}, 5000);
 		}
-		const input = context?.inputValue ?? widget.getInput();
-		const remoteCodingAgentService = accessor.get(IRemoteCodingAgentsService);
-		const agents = remoteCodingAgentService.getAgents();
-		const agent = await this.promptForRemoteAgent(accessor, agents);
-		if (!agent) {
-			return;
-		}
-		await remoteCodingAgentService.createJob(input, agent.id);
 	}
 
 	private async promptForRemoteAgent(accessor: ServicesAccessor, agents: IRemoteCodingAgent[]): Promise<IRemoteCodingAgent | undefined> {

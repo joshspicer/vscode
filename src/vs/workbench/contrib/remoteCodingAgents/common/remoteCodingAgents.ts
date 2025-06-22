@@ -27,7 +27,7 @@ export interface IRemoteCodingAgent {
 	operateCommand?: string;
 }
 
-export const REMOTE_CODING_AGENTS_TITLE = localize2('remote coding jobs', 'Remote Coding Jobs');
+export const REMOTE_CODING_AGENTS_TITLE = localize2('remote coding jobs', 'Agents');
 export const REMOTE_CODING_AGENTS_CONTAINER_ID = 'workbench.view.remoteCodingAgents';
 export const REMOTE_CODING_AGENTS_VIEW_ID = 'workbench.views.remoteCodingAgents.data';
 export const REMOTE_CODING_AGENTS_VIEW_ICON = registerIcon('remote-coding-agents-view-icon', Codicon.cloudUpload, localize('remoteCodingAgentsViewIcon', 'View icon of the remote coding agents view.'));
