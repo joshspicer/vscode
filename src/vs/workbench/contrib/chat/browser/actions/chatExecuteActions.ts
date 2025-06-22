@@ -26,6 +26,7 @@ import { ILanguageModelToolsService } from '../../common/languageModelToolsServi
 import { IChatWidget, IChatWidgetService } from '../chat.js';
 import { getEditingSessionContext } from '../chatEditing/chatEditingActions.js';
 import { ACTION_ID_NEW_CHAT, CHAT_CATEGORY, handleCurrentEditingSession, handleModeSwitch } from './chatActions.js';
+import { IRemoteCodingAgentsService } from '../../../remoteCodingAgents/common/remoteCodingAgents.js';
 
 export interface IVoiceChatExecuteActionContext {
 	readonly disableTimeout?: boolean;
@@ -442,6 +443,41 @@ export class ChatSubmitWithCodebaseAction extends Action2 {
 	}
 }
 
+export class CreateRemoteAgentJobAction extends Action2 {
+	static readonly ID = 'workbench.action.chat.createRemoteAgentJob';
+
+	constructor() {
+		const precondition = ContextKeyExpr.and(
+			ContextKeyExpr.or(ChatContextKeys.inputHasText, ChatContextKeys.hasPromptFile),
+			whenNotInProgressOrPaused
+		);
+
+		super({
+			id: CreateRemoteAgentJobAction.ID,
+			title: localize2('actions.chat.createRemoteJob', "Create Remote Job"),
+			icon: Codicon.cloudUpload,
+			precondition,
+			menu: {
+				id: MenuId.ChatExecute,
+				group: 'navigation',
+				order: 5
+			}
+		});
+	}
+
+	async run(accessor: ServicesAccessor, ...args: any[]) {
+		const context: IChatExecuteActionContext | undefined = args[0];
+		const widgetService = accessor.get(IChatWidgetService);
+		const widget = context?.widget ?? widgetService.lastFocusedWidget;
+		if (!widget) {
+			return;
+		}
+		const input = context?.inputValue ?? widget.getInput();
+		const remoteService = accessor.get(IRemoteCodingAgentsService);
+		await remoteService.createJob(input);
+	}
+}
+
 class SendToNewChatAction extends Action2 {
 	constructor() {
 		const precondition = ContextKeyExpr.and(
@@ -540,6 +576,7 @@ export function registerChatExecuteActions() {
 	registerAction2(SubmitWithoutDispatchingAction);
 	registerAction2(CancelAction);
 	registerAction2(SendToNewChatAction);
+	registerAction2(CreateRemoteAgentJobAction);
 	registerAction2(ChatSubmitWithCodebaseAction);
 	registerAction2(ToggleChatModeAction);
 	registerAction2(ToggleRequestPausedAction);

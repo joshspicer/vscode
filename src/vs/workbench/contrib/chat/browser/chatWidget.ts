@@ -53,6 +53,7 @@ import { IChatInputState } from '../common/chatWidgetHistoryService.js';
 import { CodeBlockModelCollection } from '../common/codeBlockModelCollection.js';
 import { ChatAgentLocation, ChatMode } from '../common/constants.js';
 import { ILanguageModelToolsService, IToolData, ToolSet } from '../common/languageModelToolsService.js';
+import { IRemoteCodingAgentsService } from '../../remoteCodingAgents/common/remoteCodingAgents.js';
 import { type TPromptMetadata } from '../common/promptSyntax/parsers/promptHeader/promptHeader.js';
 import { IPromptParserResult, IPromptsService } from '../common/promptSyntax/service/promptsService.js';
 import { handleModeSwitch } from './actions/chatActions.js';
@@ -276,6 +277,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 		@IPromptsService private readonly promptsService: IPromptsService,
 		@ILanguageModelToolsService private readonly toolsService: ILanguageModelToolsService,
+		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
 	) {
 		super();
 
@@ -527,6 +529,20 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		this._register(scrollDownButton.onDidClick(() => {
 			this.scrollLock = true;
 			this.scrollToEnd();
+		}));
+
+		const remoteJobButton = this._register(new Button(this.listContainer, {
+			supportIcons: true,
+			buttonBackground: asCssVariable(buttonSecondaryBackground),
+			buttonForeground: asCssVariable(buttonSecondaryForeground),
+			buttonHoverBackground: asCssVariable(buttonSecondaryHoverBackground),
+		}));
+		remoteJobButton.element.classList.add('chat-remote-job');
+		remoteJobButton.label = `$(${Codicon.cloudUpload.id})`;
+		remoteJobButton.setTitle(localize('remoteJobButtonLabel', "Create Remote Job"));
+		this._register(remoteJobButton.onDidClick(() => {
+			const input = this.getInput();
+			this.remoteCodingAgentsService.createJob(input);
 		}));
 
 		this._register(this.editorOptions.onDidChange(() => this.onDidStyleChange()));

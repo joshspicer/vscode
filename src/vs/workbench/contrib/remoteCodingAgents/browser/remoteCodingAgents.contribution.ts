@@ -11,18 +11,46 @@ import { IWorkbenchContributionsRegistry, Extensions as WorkbenchExtensions, IWo
 import { isProposedApiEnabled } from '../../../services/extensions/common/extensions.js';
 import { ExtensionsRegistry } from '../../../services/extensions/common/extensionsRegistry.js';
 import { LifecyclePhase } from '../../../services/lifecycle/common/lifecycle.js';
+import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
+import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { IRemoteCodingAgent, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_CONTAINER_ID, REMOTE_CODING_AGENTS_TITLE, REMOTE_CODING_AGENTS_VIEW_ICON } from '../common/remoteCodingAgents.js';
+import { RemoteCodingAgentsService } from './remoteCodingAgentsService.js';
+import { IViewContainersRegistry, ViewContainerLocation, Extensions as ViewExtensions } from '../../../common/views.js';
+import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
+import { ViewPaneContainer } from '../../../browser/parts/views/viewPaneContainer.js';
+import { RemoteCodingAgentsViews } from './remoteCodingAgentsViews.js';
 
 interface IRemoteCodingAgentCommand {
-	command: string;
+	id: string;
+	createCommand: string;
+	statusCommand?: string;
+	operateCommand?: string;
 	displayName: string;
 	description?: string;
 	when?: string;
 }
 
 class RemoteCodingAgentsContribution extends Disposable implements IWorkbenchContribution {
-	constructor() {
+	constructor(
+		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
+		@IInstantiationService private readonly instantiationService: IInstantiationService,
+	) {
 		super();
+		this.registerViews();
 		this.registerContributedRemoteCodingAgents();
+	}
+
+	private registerViews() {
+		const container = Registry.as<IViewContainersRegistry>(ViewExtensions.ViewContainersRegistry).registerViewContainer(
+			{
+				id: REMOTE_CODING_AGENTS_CONTAINER_ID,
+				title: REMOTE_CODING_AGENTS_TITLE,
+				ctorDescriptor: new SyncDescriptor(ViewPaneContainer, [REMOTE_CODING_AGENTS_CONTAINER_ID, { mergeViewWithContainerWhenSingleView: true }]),
+				icon: REMOTE_CODING_AGENTS_VIEW_ICON,
+				hideIfEmpty: false
+			}, ViewContainerLocation.Sidebar, { doNotRegisterOpenCommand: true }
+		);
+		this._register(this.instantiationService.createInstance(RemoteCodingAgentsViews, container));
 	}
 
 	private registerContributedRemoteCodingAgents() {
@@ -35,11 +63,19 @@ class RemoteCodingAgentsContribution extends Disposable implements IWorkbenchCon
 					continue;
 				}
 				for (const contribution of ext.value) {
-					const command = MenuRegistry.getCommand(contribution.command);
+					const command = MenuRegistry.getCommand(contribution.createCommand);
 					if (!command) {
 						continue;
 					}
-					// ...
+					const agent: IRemoteCodingAgent = {
+						id: contribution.id,
+						displayName: contribution.displayName,
+						description: contribution.description,
+						createCommand: contribution.createCommand,
+						statusCommand: contribution.statusCommand,
+						operateCommand: contribution.operateCommand,
+					};
+					this.remoteCodingAgentsService.registerAgent(agent);
 				}
 			}
 
@@ -47,6 +83,7 @@ class RemoteCodingAgentsContribution extends Disposable implements IWorkbenchCon
 	}
 }
 
+registerSingleton(IRemoteCodingAgentsService, RemoteCodingAgentsService, InstantiationType.Delayed);
 Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensions.Workbench)
 	.registerWorkbenchContribution(RemoteCodingAgentsContribution, LifecyclePhase.Restored);
 
@@ -59,8 +96,20 @@ const extensionPoint = ExtensionsRegistry.registerExtensionPoint<IRemoteCodingAg
 		items: {
 			type: 'object',
 			properties: {
-				command: {
-					description: localize('remoteCodingAgentsExtPoint.command', 'Identifier of the command to execute. The command must be declared in the "commands" section.'),
+				id: {
+					description: localize('remoteCodingAgentsExtPoint.id', 'Identifier of the remote coding agent.'),
+					type: 'string'
+				},
+				createCommand: {
+					description: localize('remoteCodingAgentsExtPoint.createCommand', 'Command id used to create a new remote job.'),
+					type: 'string'
+				},
+				statusCommand: {
+					description: localize('remoteCodingAgentsExtPoint.statusCommand', 'Command id used to fetch job status.'),
+					type: 'string'
+				},
+				operateCommand: {
+					description: localize('remoteCodingAgentsExtPoint.operateCommand', 'Command id used to operate on a job.'),
 					type: 'string'
 				},
 				displayName: {
@@ -76,7 +125,7 @@ const extensionPoint = ExtensionsRegistry.registerExtensionPoint<IRemoteCodingAg
 					type: 'string'
 				},
 			},
-			required: ['command', 'displayName'],
+			required: ['id', 'createCommand', 'displayName'],
 		}
 	}
 });
