@@ -103,6 +103,12 @@ declare module 'vscode' {
 		readonly description?: string;
 
 		/**
+		 * Codicon name to use for UI elements representing this provider.
+		 * Should be a valid codicon name (e.g., 'robot', 'gear', 'cloud').
+		 */
+		readonly codicon: string;
+
+		/**
 		 * An event to signal that jobs have changed.
 		 */
 		readonly onDidChangeJobs: Event<RemoteCodingJobsChangeEvent>;
@@ -129,6 +135,14 @@ declare module 'vscode' {
 		 * @param token A cancellation token.
 		 */
 		provideJobOperation(jobId: string, operation: string, token: CancellationToken): Thenable<void>;
+
+		/**
+		 * Get available operations for a job with the given status.
+		 * @param status The status of the job.
+		 * @param token A cancellation token.
+		 * @returns Array of available operations or undefined if no operations are available.
+		 */
+		provideAvailableOperations(status: AgentStatus, token: CancellationToken): Thenable<string[] | undefined>;
 	}
 
 	export namespace remoteCodingAgents {

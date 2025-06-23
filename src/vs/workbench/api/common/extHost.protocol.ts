@@ -3117,7 +3117,7 @@ export interface IRemoteCodingJobsChangeEventDto {
 }
 
 export interface MainThreadRemoteCodingAgentsShape extends IDisposable {
-	$registerProvider(providerId: string, displayName: string, description?: string): void;
+	$registerProvider(providerId: string, displayName: string, description: string | undefined, codicon: string): void;
 	$unregisterProvider(providerId: string): void;
 	$onDidChangeJobs(providerId: string, event: IRemoteCodingJobsChangeEventDto): void;
 }
@@ -3126,6 +3126,7 @@ export interface ExtHostRemoteCodingAgentsShape {
 	$provideJobCreation(providerId: string, prompt: string): Promise<IRemoteCodingAgentJobDto | undefined>;
 	$provideJobs(providerId: string): Promise<IRemoteCodingAgentJobDto[]>;
 	$provideJobOperation(providerId: string, jobId: string, operation: string): Promise<void>;
+	$provideAvailableOperations(providerId: string, status: string): Promise<string[] | undefined>;
 }
 
 // --- proxy identifiers

@@ -5,7 +5,7 @@
 
 import { Disposable, IDisposable } from '../../../../base/common/lifecycle.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
-import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, IRemoteCodingAgentProvider, IRemoteCodingJobsChangeEvent } from '../common/remoteCodingAgents.js';
+import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, IRemoteCodingAgentProvider, IRemoteCodingJobsChangeEvent, RemoteCodingAgentJobStatus } from '../common/remoteCodingAgents.js';
 
 export class RemoteCodingAgentsService extends Disposable implements IRemoteCodingAgentsService {
 	declare _serviceBrand: undefined;
@@ -86,5 +86,32 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 		} catch (error) {
 			console.error('Provider operateJob error:', error);
 		}
+	}
+
+	async getAvailableOperations(agentId: string, status: RemoteCodingAgentJobStatus): Promise<string[] | undefined> {
+		const provider = this._providers.find(p => p.id === agentId);
+		if (!provider) {
+			return undefined;
+		}
+
+		try {
+			return await provider.provideAvailableOperations(status);
+		} catch (error) {
+			console.error('Provider getAvailableOperations error:', error);
+			return undefined;
+		}
+	}
+
+	async getJobCountByStatus(status: RemoteCodingAgentJobStatus): Promise<number> {
+		const jobs = await this.getJobs();
+		return jobs.filter(job => job.status === status).length;
+	}
+
+	async getActiveJobCount(): Promise<number> {
+		const jobs = await this.getJobs();
+		return jobs.filter(job =>
+			job.status === RemoteCodingAgentJobStatus.InProgress ||
+			job.status === RemoteCodingAgentJobStatus.ReadyForReview
+		).length;
 	}
 }

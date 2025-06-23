@@ -17,6 +17,7 @@ class MainThreadRemoteCodingAgentProvider implements IRemoteCodingAgentProvider 
 		private readonly _id: string,
 		private readonly _displayName: string,
 		private readonly _description: string | undefined,
+		private readonly _codicon: string,
 		private readonly _proxy: ExtHostRemoteCodingAgentsShape
 	) { }
 
@@ -30,6 +31,10 @@ class MainThreadRemoteCodingAgentProvider implements IRemoteCodingAgentProvider 
 
 	public get description(): string | undefined {
 		return this._description;
+	}
+
+	public get codicon(): string {
+		return this._codicon;
 	}
 
 	public fireDidChangeJobs(event: IRemoteCodingJobsChangeEventDto): void {
@@ -53,6 +58,10 @@ class MainThreadRemoteCodingAgentProvider implements IRemoteCodingAgentProvider 
 
 	async provideJobOperation(jobId: string, operation: string): Promise<void> {
 		await this._proxy.$provideJobOperation(this._id, jobId, operation);
+	}
+
+	async provideAvailableOperations(status: RemoteCodingAgentJobStatus): Promise<string[] | undefined> {
+		return await this._proxy.$provideAvailableOperations(this._id, status);
 	}
 
 	dispose(): void {
@@ -84,12 +93,12 @@ export class MainThreadRemoteCodingAgents extends Disposable implements MainThre
 		this._proxy = extHostContext.getProxy(ExtHostContext.ExtHostRemoteCodingAgents);
 	}
 
-	$registerProvider(providerId: string, displayName: string, description?: string): void {
+	$registerProvider(providerId: string, displayName: string, description: string | undefined, codicon: string): void {
 		if (this._providers.has(providerId)) {
 			throw new Error(`Provider with id '${providerId}' is already registered`);
 		}
 
-		const provider = new MainThreadRemoteCodingAgentProvider(providerId, displayName, description, this._proxy);
+		const provider = new MainThreadRemoteCodingAgentProvider(providerId, displayName, description, codicon, this._proxy);
 		const disposable = this._remoteCodingAgentsService.registerProvider(provider);
 
 		this._providers.set(providerId, provider);

@@ -45,7 +45,21 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		// Listen for job changes and refresh UI automatically
 		this._register(this.remoteCodingAgentsService.onJobsChanged(() => {
 			this.refreshJobsFromCache();
+			this.updateTitleCount();
 		}));
+	}
+
+	private async updateTitleCount(): Promise<void> {
+		try {
+			const activeCount = await this.remoteCodingAgentsService.getActiveJobCount();
+			if (activeCount > 0) {
+				this.updateTitleDescription(activeCount.toString());
+			} else {
+				this.updateTitleDescription(undefined);
+			}
+		} catch (error) {
+			console.error('Error updating title count:', error);
+		}
 	}
 
 	protected override renderBody(container: HTMLElement): void {
@@ -55,6 +69,7 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		this.kanbanContainer = append(viewContainer, $('.remote-coding-agents-kanban'));
 		this.createKanbanBoard();
 		this.refreshJobs();
+		this.updateTitleCount();
 	}
 
 	private createKanbanBoard(): void {
@@ -199,51 +214,37 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 			return;
 		}
 
-		// Show job operation options
-		const actions: string[] = [];
-		switch (job.status) {
-			case RemoteCodingAgentJobStatus.InProgress:
-				actions.push('Cancel');
-				break;
-			case RemoteCodingAgentJobStatus.ReadyForReview:
-				actions.push('Approve', 'Reject');
-				break;
-		}
+		// Get available operations from the provider
+		const operations = await this.remoteCodingAgentsService.getAvailableOperations(job.agentId, job.status);
 
-		if (actions.length === 0) {
+		if (!operations || operations.length === 0) {
 			return;
 		}
 
-		const quickInputService = this.instantiationService.invokeFunction(accessor => accessor.get(IQuickInputService));
-		const selectedAction = await quickInputService.pick(actions.map(action => ({ label: action })), {
-			placeHolder: `What would you like to do with ${job.name}?`
-		});
+		let selectedOperation: string;
 
-		if (!selectedAction) {
-			return;
-		}
+		if (operations.length === 1) {
+			// If there's only one operation, execute it directly
+			selectedOperation = operations[0];
+		} else {
+			// If there are multiple operations, show a quick pick
+			const quickInputService = this.instantiationService.invokeFunction(accessor => accessor.get(IQuickInputService));
+			const selectedAction = await quickInputService.pick(operations.map(operation => ({ label: operation })), {
+				placeHolder: `What would you like to do with ${job.name}?`
+			});
 
-		// Convert UI action to operation
-		let operation: string;
-		switch (selectedAction.label) {
-			case 'Cancel':
-				operation = 'cancel';
-				break;
-			case 'Approve':
-				operation = 'approve';
-				break;
-			case 'Reject':
-				operation = 'reject';
-				break;
-			default:
+			if (!selectedAction) {
 				return;
+			}
+
+			selectedOperation = selectedAction.label;
 		}
 
 		// Execute the operation through the service
 		try {
-			await this.remoteCodingAgentsService.operateJob(job.agentId, job.id, operation);
+			await this.remoteCodingAgentsService.operateJob(job.agentId, job.id, selectedOperation);
 		} catch (error) {
-			console.error(`Failed to execute operation ${operation} on job ${job.id}:`, error);
+			console.error(`Failed to execute operation ${selectedOperation} on job ${job.id}:`, error);
 		}
 	}
 

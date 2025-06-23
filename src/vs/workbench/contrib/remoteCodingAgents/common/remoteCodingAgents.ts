@@ -35,10 +35,12 @@ export interface IRemoteCodingAgentProvider {
 	readonly id: string;
 	readonly displayName: string;
 	readonly description?: string;
+	readonly codicon: string;
 	readonly onDidChangeJobs: Event<IRemoteCodingJobsChangeEvent>;
 	provideJobCreation(prompt: string): Promise<IRemoteCodingAgentJob | undefined>;
 	provideJobs(): Promise<IRemoteCodingAgentJob[]>;
 	provideJobOperation(jobId: string, operation: string): Promise<void>;
+	provideAvailableOperations(status: RemoteCodingAgentJobStatus): Promise<string[] | undefined>;
 }
 
 export const REMOTE_CODING_AGENTS_TITLE = localize2('remote coding jobs', 'Agents');
@@ -58,4 +60,8 @@ export interface IRemoteCodingAgentsService {
 	createJob(input: string, agentId: string): Promise<IRemoteCodingAgentJob | undefined>;
 	getJobs(refresh?: boolean): Promise<IRemoteCodingAgentJob[]>;
 	operateJob(agentId: string, jobId: string, operation: string): Promise<void>;
+	getAvailableOperations(agentId: string, status: RemoteCodingAgentJobStatus): Promise<string[] | undefined>;
+
+	getJobCountByStatus(status: RemoteCodingAgentJobStatus): Promise<number>;
+	getActiveJobCount(): Promise<number>; // InProgress + ReadyForReview
 }

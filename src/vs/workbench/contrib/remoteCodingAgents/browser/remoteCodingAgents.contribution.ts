@@ -16,6 +16,7 @@ import { IViewContainersRegistry, ViewContainerLocation, Extensions as ViewExten
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
 import { ViewPaneContainer } from '../../../browser/parts/views/viewPaneContainer.js';
 import { RemoteCodingAgentsViews } from './remoteCodingAgentsViews.js';
+import { RemoteCodingAgentsStatusContribution } from './remoteCodingAgentsStatus.js';
 
 class RemoteCodingAgentsContribution extends Disposable implements IWorkbenchContribution {
 	constructor(
@@ -42,3 +43,5 @@ class RemoteCodingAgentsContribution extends Disposable implements IWorkbenchCon
 registerSingleton(IRemoteCodingAgentsService, RemoteCodingAgentsService, InstantiationType.Delayed);
 Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensions.Workbench)
 	.registerWorkbenchContribution(RemoteCodingAgentsContribution, LifecyclePhase.Restored);
+Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensions.Workbench)
+	.registerWorkbenchContribution(RemoteCodingAgentsStatusContribution, LifecyclePhase.Restored);

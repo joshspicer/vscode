@@ -56,7 +56,7 @@ export class ExtHostRemoteCodingAgents implements ExtHostRemoteCodingAgentsShape
 		}));
 
 		this._providers.set(providerId, providerData);
-		this._proxy.$registerProvider(providerId, provider.displayName, provider.description);
+		this._proxy.$registerProvider(providerId, provider.displayName, provider.description, provider.codicon);
 
 		return {
 			dispose: () => {
@@ -116,6 +116,23 @@ export class ExtHostRemoteCodingAgents implements ExtHostRemoteCodingAgentsShape
 			});
 		} catch (error) {
 			console.error(`Error in provideJobOperation for provider ${providerId}:`, error);
+			throw error;
+		}
+	}
+
+	async $provideAvailableOperations(providerId: string, status: string): Promise<string[] | undefined> {
+		const providerData = this._providers.get(providerId);
+		if (!providerData) {
+			throw new Error(`No provider found for id: ${providerId}`);
+		}
+
+		try {
+			return await providerData.provider.provideAvailableOperations(status as any, {
+				isCancellationRequested: false,
+				onCancellationRequested: Event.None
+			});
+		} catch (error) {
+			console.error(`Error in provideAvailableOperations for provider ${providerId}:`, error);
 			throw error;
 		}
 	}

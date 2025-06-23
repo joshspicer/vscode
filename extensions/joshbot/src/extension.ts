@@ -15,6 +15,7 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 	readonly id = 'devbox';
 	readonly displayName = 'Windows Dev Box';
 	readonly description = 'Iterate on your project backed by the Visual Studio toolchain';
+	readonly codicon = 'robot';
 
 	constructor() {
 		// Create some initial demo jobs after a short delay
@@ -132,6 +133,23 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 			changed: [job],
 			removed: []
 		});
+	}
+
+	async provideAvailableOperations(status: vscode.AgentStatus, token: vscode.CancellationToken): Promise<string[] | undefined> {
+		if (token.isCancellationRequested) {
+			return undefined;
+		}
+
+		switch (status) {
+			case vscode.AgentStatus.InProgress:
+				return ['cancel'];
+			case vscode.AgentStatus.ReadyForReview:
+				return ['approve', 'reject'];
+			case vscode.AgentStatus.Completed:
+				return []; // No operations available for completed jobs
+			default:
+				return [];
+		}
 	}
 
 	private createInitialJobs(): void {
