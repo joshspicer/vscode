@@ -15,7 +15,7 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 	readonly id = 'devbox';
 	readonly displayName = 'Windows Dev Box';
 	readonly description = 'Iterate on your project backed by the Visual Studio toolchain';
-	readonly codicon = 'robot';
+	readonly codicon = 'archive';
 
 	constructor() {
 		// Create some initial demo jobs after a short delay

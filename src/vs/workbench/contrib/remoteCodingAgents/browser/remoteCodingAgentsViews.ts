@@ -3,12 +3,12 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Disposable } from '../../../../base/common/lifecycle.js';
+import { Disposable, IDisposable } from '../../../../base/common/lifecycle.js';
 import { localize } from '../../../../nls.js';
 import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
-import { IViewDescriptor, IViewsRegistry, Extensions, ViewContainer, IViewDescriptorService } from '../../../common/views.js';
+import { IViewDescriptor, IViewsRegistry, Extensions, ViewContainer, IViewDescriptorService, IViewBadge } from '../../../common/views.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
 import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE, RemoteCodingAgentJobStatus } from '../common/remoteCodingAgents.js';
 import { IViewletViewOptions } from '../../../browser/parts/views/viewsViewlet.js';
@@ -21,12 +21,15 @@ import { IThemeService } from '../../../../platform/theme/common/themeService.js
 import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { append, $, clearNode, addDisposableListener } from '../../../../base/browser/dom.js';
 import { IQuickInputService } from '../../../../platform/quickinput/common/quickInput.js';
+import { IActivityService, NumberBadge } from '../../../services/activity/common/activity.js';
 
 class RemoteCodingAgentsKanbanView extends ViewPane {
 	private kanbanContainer: HTMLElement | undefined;
 	private columns: Map<string, HTMLElement> = new Map();
 	private jobElements: Map<string, HTMLElement> = new Map();
 	private isRefreshing: boolean = false;
+	private _badge: IViewBadge | undefined;
+	private _badgeDisposable: IDisposable | undefined;
 
 	constructor(
 		options: IViewletViewOptions,
@@ -39,7 +42,8 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		@IInstantiationService instantiationService: IInstantiationService,
 		@IOpenerService openerService: IOpenerService,
 		@IThemeService themeService: IThemeService,
-		@IHoverService hoverService: IHoverService
+		@IHoverService hoverService: IHoverService,
+		@IActivityService private readonly activityService: IActivityService
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
 		// Listen for job changes and refresh UI automatically
@@ -53,12 +57,35 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		try {
 			const activeCount = await this.remoteCodingAgentsService.getActiveJobCount();
 			if (activeCount > 0) {
-				this.updateTitleDescription(activeCount.toString());
+				const badge: IViewBadge = {
+					value: activeCount,
+					tooltip: activeCount === 1
+						? localize('remoteCodingAgentsCount.singular', "{0} active task", activeCount)
+						: localize('remoteCodingAgentsCount.plural', "{0} active tasks", activeCount)
+				};
+				this.setBadge(badge);
 			} else {
-				this.updateTitleDescription(undefined);
+				this.setBadge(undefined);
 			}
 		} catch (error) {
 			console.error('Error updating title count:', error);
+		}
+	}
+
+	private setBadge(badge: IViewBadge | undefined): void {
+		if (this._badge?.value === badge?.value && this._badge?.tooltip === badge?.tooltip) {
+			return;
+		}
+
+		// Dispose previous badge
+		this._badgeDisposable?.dispose();
+		this._badgeDisposable = undefined;
+
+		this._badge = badge;
+		if (badge) {
+			this._badgeDisposable = this.activityService.showViewActivity(this.id, {
+				badge: new NumberBadge(badge.value, () => badge.tooltip),
+			});
 		}
 	}
 
@@ -254,6 +281,11 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		if (countElement) {
 			countElement.textContent = count.toString();
 		}
+	}
+
+	override dispose(): void {
+		this._badgeDisposable?.dispose();
+		super.dispose();
 	}
 
 	override shouldShowWelcome(): boolean {
