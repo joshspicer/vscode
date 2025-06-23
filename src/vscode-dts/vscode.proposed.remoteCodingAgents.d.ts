@@ -52,6 +52,13 @@ declare module 'vscode' {
 		 * The original prompt or request that created this job.
 		 */
 		prompt: string;
+
+		metadata?: {
+			git?: {
+				additions: number;
+				deletions: number;
+			};
+		};
 	}
 
 	/**

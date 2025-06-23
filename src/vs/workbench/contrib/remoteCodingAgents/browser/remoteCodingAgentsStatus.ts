@@ -70,14 +70,15 @@ export class RemoteCodingAgentsStatusContribution implements IWorkbenchContribut
 			tooltip = nls.localize('remoteCodingAgentsTooltip', "{0}", text);
 		}
 
-		// Show spinner and cloud icon when jobs are in progress
-		const prefixIcon = '$(cloud)';
-		const postfixIcon = this.inProgressJobCount > 0 ? '$(loading~spin)' : '';
+		// Show appropriate icon based on job status
+		// Use cloud icon as base, with loading animation when jobs are in progress
+		const baseIcon = '$(cloud)';
+		const animationIcon = this.inProgressJobCount > 0 ? '$(loading~spin)' : '';
 		const displayCount = this.inProgressJobCount > 0 ? this.activeJobCount : (this.readyForReviewCount > 0 ? this.readyForReviewCount : this.activeJobCount);
 
 		return {
 			name: nls.localize('status.remoteCodingAgents', "Remote Coding Agents"),
-			text: `${prefixIcon} ${displayCount} ${postfixIcon}`,
+			text: `${baseIcon} ${displayCount} ${animationIcon}`,
 			ariaLabel: text,
 			tooltip,
 			command: 'workbench.views.remoteCodingAgents.data.focus'

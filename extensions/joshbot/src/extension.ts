@@ -39,12 +39,23 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 		}
 
 		const jobId = `devbox-job-${++this.jobCounter}`;
+
+		// Add some mock git metadata for demonstration
+		const hasGitMetadata = Math.random() > 0.5; // 50% chance of having git metadata
+		const metadata = hasGitMetadata ? {
+			git: {
+				additions: Math.floor(Math.random() * 100) + 1, // 1-100 additions
+				deletions: Math.floor(Math.random() * 50) // 0-49 deletions
+			}
+		} : undefined;
+
 		const job: vscode.RemoteCodingAgentJob = {
 			id: jobId,
 			name: JoshBotProvider.takeXWords(prompt, 3),
 			status: vscode.AgentStatus.InProgress,
 			agentId: this.id,
 			prompt,
+			metadata
 		};
 
 		this.jobs.set(jobId, job);
@@ -153,12 +164,64 @@ class JoshBotProvider implements vscode.RemoteCodingAgentProvider {
 	}
 
 	private createInitialJobs(): void {
-		// Create a simple cancellation token for initial jobs
-		const token = new vscode.CancellationTokenSource().token;
+		// Create some initial demo jobs with varying metadata
+		const demoJobs = [
+			{
+				prompt: 'Create a TypeScript interface for user data',
+				metadata: {
+					git: {
+						additions: 25,
+						deletions: 3
+					}
+				}
+			},
+			{
+				prompt: 'Generate unit tests for the auth module',
+				metadata: {
+					git: {
+						additions: 87,
+						deletions: 12
+					}
+				}
+			},
+			{
+				prompt: 'Optimize database queries for better performance',
+				metadata: undefined // No metadata for this one
+			}
+		];
 
-		this.provideJobCreation('Create a TypeScript interface for user data', token);
-		this.provideJobCreation('Generate unit tests for the auth module', token);
-		this.provideJobCreation('Optimize database queries for better performance', token);
+		for (const demo of demoJobs) {
+			const jobId = `devbox-job-${++this.jobCounter}`;
+			const job: vscode.RemoteCodingAgentJob = {
+				id: jobId,
+				name: JoshBotProvider.takeXWords(demo.prompt, 3),
+				status: vscode.AgentStatus.InProgress,
+				agentId: this.id,
+				prompt: demo.prompt,
+				metadata: demo.metadata
+			};
+
+			this.jobs.set(jobId, job);
+
+			// Fire event for new job
+			this._onDidChangeJobs.fire({
+				added: [job],
+				changed: [],
+				removed: []
+			});
+
+			// Simulate AI processing work (3-6 seconds)
+			setTimeout(() => {
+				if (this.jobs.has(jobId)) {
+					job.status = vscode.AgentStatus.ReadyForReview;
+					this._onDidChangeJobs.fire({
+						added: [],
+						changed: [job],
+						removed: []
+					});
+				}
+			}, 3000 + Math.random() * 6000);
+		}
 	}
 }
 

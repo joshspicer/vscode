@@ -22,6 +22,12 @@ export interface IRemoteCodingAgentJob {
 	status: RemoteCodingAgentJobStatus;
 	agentId: string;
 	prompt: string;
+	metadata?: {
+		git?: {
+			additions: number;
+			deletions: number;
+		};
+	};
 }
 
 
@@ -46,6 +52,7 @@ export interface IRemoteCodingAgentProvider {
 export const REMOTE_CODING_AGENTS_TITLE = localize2('remote coding jobs', 'Agents');
 export const REMOTE_CODING_AGENTS_CONTAINER_ID = 'workbench.view.remoteCodingAgents';
 export const REMOTE_CODING_AGENTS_VIEW_ID = 'workbench.views.remoteCodingAgents.data';
+export const REMOTE_CODING_AGENTS_LIST_VIEW_ID = 'workbench.views.remoteCodingAgents.list';
 export const REMOTE_CODING_AGENTS_VIEW_ICON = registerIcon('remote-coding-agents-view-icon', Codicon.cloudUpload, localize('remoteCodingAgentsViewIcon', 'View icon of the remote coding agents view.'));
 
 export const IRemoteCodingAgentsService = createDecorator<IRemoteCodingAgentsService>('remoteCodingAgentsService');

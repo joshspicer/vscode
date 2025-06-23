@@ -3108,6 +3108,12 @@ export interface IRemoteCodingAgentJobDto {
 	status: string;
 	agentId: string;
 	prompt: string;
+	metadata?: {
+		git?: {
+			additions: number;
+			deletions: number;
+		};
+	};
 }
 
 export interface IRemoteCodingJobsChangeEventDto {

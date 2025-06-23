@@ -10,7 +10,7 @@ import { IInstantiationService } from '../../../../platform/instantiation/common
 import { Registry } from '../../../../platform/registry/common/platform.js';
 import { IViewDescriptor, IViewsRegistry, Extensions, ViewContainer, IViewDescriptorService, IViewBadge } from '../../../common/views.js';
 import { ViewPane } from '../../../browser/parts/views/viewPane.js';
-import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_TITLE, RemoteCodingAgentJobStatus } from '../common/remoteCodingAgents.js';
+import { IRemoteCodingAgentJob, IRemoteCodingAgentsService, REMOTE_CODING_AGENTS_VIEW_ID, REMOTE_CODING_AGENTS_LIST_VIEW_ID, RemoteCodingAgentJobStatus } from '../common/remoteCodingAgents.js';
 import { IViewletViewOptions } from '../../../browser/parts/views/viewsViewlet.js';
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
@@ -22,6 +22,8 @@ import { IHoverService } from '../../../../platform/hover/browser/hover.js';
 import { append, $, clearNode, addDisposableListener } from '../../../../base/browser/dom.js';
 import { IQuickInputService } from '../../../../platform/quickinput/common/quickInput.js';
 import { IActivityService, NumberBadge } from '../../../services/activity/common/activity.js';
+import { renderIcon } from '../../../../base/browser/ui/iconLabel/iconLabels.js';
+import { Codicon } from '../../../../base/common/codicons.js';
 
 class RemoteCodingAgentsKanbanView extends ViewPane {
 	private kanbanContainer: HTMLElement | undefined;
@@ -213,13 +215,44 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 		const title = append(header, $('.kanban-job-title'));
 		title.textContent = job.name;
 
-		const agent = append(header, $('.kanban-job-agent'));
-		agent.textContent = job.agentId;
+		const agentInfo = append(header, $('.kanban-job-agent'));
+
+		// Get the provider to access its codicon
+		const provider = this.remoteCodingAgentsService.getProviders().find(p => p.id === job.agentId);
+		if (provider) {
+			// Create icon element and text content separately
+			const iconElement = renderIcon(Codicon[provider.codicon as keyof typeof Codicon] || Codicon.robot);
+			agentInfo.appendChild(iconElement);
+
+			// Add a space and the display name
+			const textNode = document.createTextNode(` ${provider.displayName}`);
+			agentInfo.appendChild(textNode);
+		} else {
+			// Fallback if provider not found
+			agentInfo.textContent = job.agentId;
+		}
 
 		const content = append(card, $('.kanban-job-content'));
 		const prompt = append(content, $('.kanban-job-prompt'));
 		const promptText = job.prompt || 'No description available';
 		prompt.textContent = promptText.length > 100 ? promptText.substring(0, 100) + '...' : promptText;
+
+		// Add git metadata if available
+		if (job.metadata?.git) {
+			const gitInfo = append(content, $('.kanban-job-git-info'));
+
+			// Create additions info
+			if (job.metadata.git.additions > 0) {
+				const additionsSpan = append(gitInfo, $('.git-additions'));
+				additionsSpan.textContent = `+${job.metadata.git.additions}`;
+			}
+
+			// Create deletions info
+			if (job.metadata.git.deletions > 0) {
+				const deletionsSpan = append(gitInfo, $('.git-deletions'));
+				deletionsSpan.textContent = `-${job.metadata.git.deletions}`;
+			}
+		}
 
 		// Make the entire card clickable
 		this._register(addDisposableListener(card, 'click', () => this.onJobCardClick(job)));
@@ -293,6 +326,159 @@ class RemoteCodingAgentsKanbanView extends ViewPane {
 	}
 }
 
+class RemoteCodingAgentsListView extends ViewPane {
+	private treeContainer: HTMLElement | undefined;
+
+	constructor(
+		options: IViewletViewOptions,
+		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
+		@IKeybindingService keybindingService: IKeybindingService,
+		@IContextMenuService contextMenuService: IContextMenuService,
+		@IConfigurationService configurationService: IConfigurationService,
+		@IContextKeyService contextKeyService: IContextKeyService,
+		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
+		@IInstantiationService instantiationService: IInstantiationService,
+		@IOpenerService openerService: IOpenerService,
+		@IThemeService themeService: IThemeService,
+		@IHoverService hoverService: IHoverService
+	) {
+		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
+
+		this._register(this.remoteCodingAgentsService.onJobsChanged(() => {
+			this.refresh();
+		}));
+	}
+
+	protected override renderBody(container: HTMLElement): void {
+		this.treeContainer = append(container, $('.remote-coding-agents-tree'));
+		this.refresh();
+	}
+
+	private async refresh(): Promise<void> {
+		if (!this.treeContainer) {
+			return;
+		}
+
+		// Clear existing content
+		clearNode(this.treeContainer);
+
+		try {
+			const jobs = await this.remoteCodingAgentsService.getJobs();
+			const providers = this.remoteCodingAgentsService.getProviders();
+
+			// Create a simple list of job items
+			jobs.forEach(job => {
+				const provider = providers.find(p => p.id === job.agentId);
+				const jobElement = this.createJobElement(job, provider);
+				this.treeContainer!.appendChild(jobElement);
+			});
+
+		} catch (error) {
+			console.error('Error refreshing remote coding agents list:', error);
+		}
+	}
+
+	private createJobElement(job: IRemoteCodingAgentJob, provider?: { id: string; displayName: string; codicon: string }): HTMLElement {
+		const element = document.createElement('div');
+		element.className = 'tree-job-item';
+		element.setAttribute('role', 'treeitem');
+		element.setAttribute('tabindex', '0');
+
+		// Job content (removed status icon)
+		const content = append(element, $('.job-content'));
+
+		// Title and status
+		const header = append(content, $('.job-header'));
+		const title = append(header, $('.job-title'));
+		title.textContent = job.name;
+
+		const status = append(header, $('.job-status'));
+		status.textContent = this.formatJobStatus(job.status);
+		status.className = `job-status status-${job.status.toLowerCase()}`;
+
+		// Description
+		const description = append(content, $('.job-description'));
+		const promptText = job.prompt || 'No description available';
+		description.textContent = promptText.length > 100 ? promptText.substring(0, 100) + '...' : promptText;
+
+		// Footer with agent and git info
+		const footer = append(content, $('.job-footer'));
+
+		// Agent info
+		const agent = append(footer, $('.job-agent'));
+		if (provider) {
+			const providerIcon = renderIcon(Codicon[provider.codicon as keyof typeof Codicon] || Codicon.robot);
+			agent.appendChild(providerIcon);
+			const agentText = document.createTextNode(` ${provider.displayName}`);
+			agent.appendChild(agentText);
+		} else {
+			agent.textContent = job.agentId;
+		}
+
+		// Git info
+		if (job.metadata?.git) {
+			const gitInfo = append(footer, $('.job-git-info'));
+			if (job.metadata.git.additions > 0 || job.metadata.git.deletions > 0) {
+				gitInfo.textContent = `+${job.metadata.git.additions || 0} -${job.metadata.git.deletions || 0}`;
+			}
+		}
+
+		// Make clickable
+		this._register(addDisposableListener(element, 'click', () => this.onJobClick(job)));
+		this._register(addDisposableListener(element, 'keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				this.onJobClick(job);
+			}
+		}));
+
+		return element;
+	}
+
+	private formatJobStatus(status: RemoteCodingAgentJobStatus): string {
+		switch (status) {
+			case RemoteCodingAgentJobStatus.InProgress:
+				return 'In Progress';
+			case RemoteCodingAgentJobStatus.ReadyForReview:
+				return 'Ready for Review';
+			case RemoteCodingAgentJobStatus.Completed:
+				return 'Completed';
+			default:
+				return status;
+		}
+	}
+
+	private async onJobClick(job: IRemoteCodingAgentJob): Promise<void> {
+		// Find the provider for this job
+		const provider = this.remoteCodingAgentsService.getProviders().find(p => p.id === job.agentId);
+		if (!provider) {
+			console.warn(`No provider found for agent ${job.agentId}`);
+			return;
+		}
+
+		// Get available operations from the provider
+		try {
+			const operations = await provider.provideAvailableOperations(job.status);
+			if (!operations || operations.length === 0) {
+				return;
+			}
+
+			// For now, just log the operations. In a real implementation, you'd show a context menu or quick pick
+			console.log(`Available operations for ${job.name}:`, operations);
+		} catch (error) {
+			console.error('Error getting operations for job:', error);
+		}
+	}
+
+	override dispose(): void {
+		super.dispose();
+	}
+
+	override shouldShowWelcome(): boolean {
+		return false;
+	}
+}
+
 export class RemoteCodingAgentsViews extends Disposable {
 	constructor(container: ViewContainer, @IInstantiationService _instantiationService: IInstantiationService) {
 		super();
@@ -301,9 +487,11 @@ export class RemoteCodingAgentsViews extends Disposable {
 
 	private registerViews(container: ViewContainer): void {
 		const viewsRegistry = Registry.as<IViewsRegistry>(Extensions.ViewsRegistry);
-		const descriptor: IViewDescriptor = {
+
+		// Register kanban view
+		const kanbanDescriptor: IViewDescriptor = {
 			id: REMOTE_CODING_AGENTS_VIEW_ID,
-			name: REMOTE_CODING_AGENTS_TITLE,
+			name: { value: 'Kanban', original: 'Kanban' },
 			ctorDescriptor: new SyncDescriptor(RemoteCodingAgentsKanbanView),
 			canToggleVisibility: true,
 			canMoveView: false,
@@ -311,6 +499,19 @@ export class RemoteCodingAgentsViews extends Disposable {
 			hideByDefault: false,
 			order: 100
 		};
-		viewsRegistry.registerViews([descriptor], container);
+
+		// Register list view
+		const listDescriptor: IViewDescriptor = {
+			id: REMOTE_CODING_AGENTS_LIST_VIEW_ID,
+			name: { value: 'List', original: 'List' },
+			ctorDescriptor: new SyncDescriptor(RemoteCodingAgentsListView),
+			canToggleVisibility: true,
+			canMoveView: false,
+			collapsed: true,
+			hideByDefault: false,
+			order: 200
+		};
+
+		viewsRegistry.registerViews([kanbanDescriptor, listDescriptor], container);
 	}
 }

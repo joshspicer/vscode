@@ -74,7 +74,8 @@ class MainThreadRemoteCodingAgentProvider implements IRemoteCodingAgentProvider 
 			name: jobDto.name,
 			status: jobDto.status as RemoteCodingAgentJobStatus,
 			agentId: jobDto.agentId,
-			prompt: jobDto.prompt
+			prompt: jobDto.prompt,
+			metadata: jobDto.metadata
 		};
 	}
 }

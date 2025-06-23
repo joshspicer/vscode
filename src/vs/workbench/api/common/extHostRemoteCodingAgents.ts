@@ -143,7 +143,8 @@ export class ExtHostRemoteCodingAgents implements ExtHostRemoteCodingAgentsShape
 			name: job.name,
 			status: job.status,
 			agentId: job.agentId,
-			prompt: job.prompt
+			prompt: job.prompt,
+			metadata: job.metadata
 		};
 	}
 }
