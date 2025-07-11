@@ -1,0 +1,91 @@
+{
+  "name": "joshbot",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "version": "1.0.0",
+  "publisher": "vscode",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "icon": "media/icon.png",
+  "capabilities": {
+    "virtualWorkspaces": true,
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension",
+  "enabledApiProposals": [
+    "remoteCodingAgents"
+  ],
+  "scripts": {
+    "compile": "gulp compile-extension:joshbot",
+    "watch": "gulp watch-extension:joshbot"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "joshbot.startCodingTask",
+        "title": "Start Coding Task",
+        "category": "JoshBot"
+      },
+      {
+        "command": "joshbot.simulateFileModification",
+        "title": "Simulate File Modification",
+        "category": "JoshBot"
+      },
+      {
+        "command": "joshbot.simulateError",
+        "title": "Simulate Error",
+        "category": "JoshBot"
+      },
+      {
+        "command": "joshbot.simulateLongRunningTask",
+        "title": "Simulate Long Running Task",
+        "category": "JoshBot"
+      },
+      {
+        "command": "joshbot.clearStatus",
+        "title": "Clear Status",
+        "category": "JoshBot"
+      },
+      {
+        "command": "joshbot.showOutput",
+        "title": "Show Output",
+        "category": "JoshBot"
+      }
+    ],
+    "configuration": {
+      "title": "JoshBot",
+      "properties": {
+        "joshbot.agentId": {
+          "type": "string",
+          "default": "joshbot-agent",
+          "description": "Unique identifier for the JoshBot agent"
+        },
+        "joshbot.simulateDelay": {
+          "type": "number",
+          "default": 1000,
+          "description": "Delay in milliseconds between status updates"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "22.x"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "trailingComma": "all",
+    "singleQuote": true,
+    "arrowParens": "avoid"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microsoft/vscode.git"
+  }
+}

@@ -1,0 +1,4 @@
+{
+	"displayName": "JoshBot Remote Coding Agent Test",
+	"description": "A test extension for the Remote Coding Agents status API that simulates a coding agent reporting various status updates to VS Code core."
+}
