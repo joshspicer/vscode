@@ -69,6 +69,7 @@ import { ExtHostLanguages } from './extHostLanguages.js';
 import { IExtHostLocalizationService } from './extHostLocalizationService.js';
 import { IExtHostManagedSockets } from './extHostManagedSockets.js';
 import { IExtHostMpcService } from './extHostMcp.js';
+import { IExtHostRemoteCodingAgents } from './extHostRemoteCodingAgents.js';
 import { ExtHostMessageService } from './extHostMessageService.js';
 import { ExtHostNotebookController } from './extHostNotebook.js';
 import { ExtHostNotebookDocumentSaveParticipant } from './extHostNotebookDocumentSaveParticipant.js';
@@ -148,6 +149,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 	const extHostEditorTabs = accessor.get(IExtHostEditorTabs);
 	const extHostManagedSockets = accessor.get(IExtHostManagedSockets);
 	const extHostProgress = accessor.get(IExtHostProgress);
+	const extHostRemoteCodingAgents = accessor.get(IExtHostRemoteCodingAgents);
 	const extHostAuthentication = accessor.get(IExtHostAuthentication);
 	const extHostLanguageModels = accessor.get(IExtHostLanguageModels);
 	const extHostMcp = accessor.get(IExtHostMpcService);
@@ -168,6 +170,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 	rpcProtocol.set(ExtHostContext.ExtHostManagedSockets, extHostManagedSockets);
 	rpcProtocol.set(ExtHostContext.ExtHostProgress, extHostProgress);
 	rpcProtocol.set(ExtHostContext.ExtHostAuthentication, extHostAuthentication);
+	rpcProtocol.set(ExtHostContext.ExtHostRemoteCodingAgents, extHostRemoteCodingAgents);
 	rpcProtocol.set(ExtHostContext.ExtHostChatProvider, extHostLanguageModels);
 
 	// automatically create and register addressable instances
@@ -1546,6 +1549,14 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			}
 		};
 
+		// namespace: remoteCodingAgents
+		const remoteCodingAgents = {
+			registerStatusProvider(provider: vscode.RemoteCodingAgentStatusProvider) {
+				checkProposedApiEnabled(extension, 'remoteCodingAgents');
+				return extHostRemoteCodingAgents.registerStatusProvider(provider);
+			},
+		};
+
 		// eslint-disable-next-line local/code-no-dangerous-type-assertions
 		return <typeof vscode>{
 			version: initData.version,
@@ -1563,6 +1574,7 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			languages,
 			lm,
 			notebooks,
+			remoteCodingAgents,
 			scm,
 			speech,
 			tasks,
@@ -1660,6 +1672,9 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			QuickInputButtons: extHostTypes.QuickInputButtons,
 			Range: extHostTypes.Range,
 			RelativePattern: extHostTypes.RelativePattern,
+			RemoteCodingAgentFileChangeType: extHostTypes.RemoteCodingAgentFileChangeType,
+			RemoteCodingAgentLogLevel: extHostTypes.RemoteCodingAgentLogLevel,
+			RemoteCodingAgentMessageType: extHostTypes.RemoteCodingAgentMessageType,
 			Selection: extHostTypes.Selection,
 			SelectionRange: extHostTypes.SelectionRange,
 			SemanticTokens: extHostTypes.SemanticTokens,

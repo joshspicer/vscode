@@ -64,6 +64,23 @@ export enum TerminalQuickFixType {
 	Command = 3
 }
 
+export enum RemoteCodingAgentFileChangeType {
+	Created = 'created',
+	Modified = 'modified',
+	Deleted = 'deleted'
+}
+
+export enum RemoteCodingAgentMessageType {
+	Request = 'request',
+	Response = 'response'
+}
+
+export enum RemoteCodingAgentLogLevel {
+	Info = 'info',
+	Warn = 'warn',
+	Error = 'error'
+}
+
 @es5ClassCompat
 export class Disposable {
 

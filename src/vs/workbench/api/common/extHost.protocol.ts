@@ -1381,6 +1381,57 @@ export interface IChatParticipantDetectionResult {
 	command?: string;
 }
 
+export interface MainThreadRemoteCodingAgentsShape extends IDisposable {
+	$registerStatusProvider(handle: number): void;
+	$unregisterStatusProvider(handle: number): void;
+	$onDidUpdateStatus(update: IRemoteCodingAgentStatusUpdateDto): void;
+}
+
+export interface ExtHostRemoteCodingAgentsShape {
+	// Currently no methods needed from main thread to extension host
+}
+
+export interface IRemoteCodingAgentStatusDataDto {
+	filesChanged?: {
+		uri: UriComponents;
+		changeType: 'created' | 'modified' | 'deleted';
+		preview?: string;
+	}[];
+	messages?: {
+		messageType: 'request' | 'response';
+		content: string;
+		timestamp: number;
+	}[];
+	logs?: {
+		level: 'info' | 'warn' | 'error';
+		message: string;
+		timestamp: number;
+	}[];
+	links?: {
+		uri: UriComponents;
+		label: string;
+		tooltip?: string;
+	}[];
+	/**
+	 * Optional icon to display for this agent's current state.
+	 */
+	icon?: {
+		id: string;
+		color?: string;
+	};
+}
+
+export interface IRemoteCodingAgentStatusUpdateDto {
+	agentId: string;
+	jobId?: string;
+	timestamp: number;
+	data: IRemoteCodingAgentStatusDataDto;
+	/**
+	 * Optional command to execute when this status item is clicked in the tree view.
+	 */
+	command?: string;
+}
+
 export interface IToolDataDto {
 	id: string;
 	toolReferenceName?: string;
@@ -3180,6 +3231,7 @@ export const MainContext = {
 	MainThreadAiEmbeddingVector: createProxyIdentifier<MainThreadAiEmbeddingVectorShape>('MainThreadAiEmbeddingVector'),
 	MainThreadChatStatus: createProxyIdentifier<MainThreadChatStatusShape>('MainThreadChatStatus'),
 	MainThreadAiSettingsSearch: createProxyIdentifier<MainThreadAiSettingsSearchShape>('MainThreadAiSettingsSearch'),
+	MainThreadRemoteCodingAgents: createProxyIdentifier<MainThreadRemoteCodingAgentsShape>('MainThreadRemoteCodingAgents'),
 };
 
 export const ExtHostContext = {
@@ -3252,4 +3304,5 @@ export const ExtHostContext = {
 	ExtHostTelemetry: createProxyIdentifier<ExtHostTelemetryShape>('ExtHostTelemetry'),
 	ExtHostLocalization: createProxyIdentifier<ExtHostLocalizationShape>('ExtHostLocalization'),
 	ExtHostMcp: createProxyIdentifier<ExtHostMcpShape>('ExtHostMcp'),
+	ExtHostRemoteCodingAgents: createProxyIdentifier<ExtHostRemoteCodingAgentsShape>('ExtHostRemoteCodingAgents'),
 };

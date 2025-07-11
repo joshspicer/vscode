@@ -8,11 +8,13 @@ import { localize } from '../../../../nls.js';
 import { MenuRegistry } from '../../../../platform/actions/common/actions.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
+import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IWorkbenchContribution, Extensions as WorkbenchExtensions, IWorkbenchContributionsRegistry } from '../../../common/contributions.js';
 import { isProposedApiEnabled } from '../../../services/extensions/common/extensions.js';
 import { ExtensionsRegistry } from '../../../services/extensions/common/extensionsRegistry.js';
 import { LifecyclePhase } from '../../../services/lifecycle/common/lifecycle.js';
 import { IRemoteCodingAgent, IRemoteCodingAgentsService } from '../common/remoteCodingAgentsService.js';
+import { createRemoteCodingAgentsViews, RemoteCodingAgentsViews } from './remoteCodingAgentsView.js';
 
 interface IRemoteCodingAgentExtensionPoint {
 	id: string;
@@ -62,11 +64,19 @@ const extensionPoint = ExtensionsRegistry.registerExtensionPoint<IRemoteCodingAg
 });
 
 export class RemoteCodingAgentsContribution extends Disposable implements IWorkbenchContribution {
+	private readonly views: RemoteCodingAgentsViews;
+
 	constructor(
 		@ILogService private readonly logService: ILogService,
-		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService
+		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
+		@IInstantiationService private readonly instantiationService: IInstantiationService
 	) {
 		super();
+
+		// Create the tree view and store reference to prevent garbage collection
+		this.views = createRemoteCodingAgentsViews(this.instantiationService);
+		this._register(this.views);
+
 		extensionPoint.setHandler(extensions => {
 			for (const ext of extensions) {
 				if (!isProposedApiEnabled(ext.description, 'remoteCodingAgents')) {

@@ -3,8 +3,8 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Disposable } from '../../../../base/common/lifecycle.js';
-import { Event } from '../../../../base/common/event.js';
+import { Disposable, toDisposable, IDisposable } from '../../../../base/common/lifecycle.js';
+import { Event, Emitter } from '../../../../base/common/event.js';
 import { ContextKeyExpr, IContextKey, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { InstantiationType, registerSingleton } from '../../../../platform/instantiation/common/extensions.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
@@ -19,11 +19,61 @@ export interface IRemoteCodingAgent {
 	when?: string;
 }
 
+export interface IRemoteCodingAgentStatusData {
+	filesChanged?: {
+		uri: string;
+		changeType: 'created' | 'modified' | 'deleted';
+		preview?: string;
+	}[];
+	messages?: {
+		messageType: 'request' | 'response';
+		content: string;
+		timestamp: number;
+	}[];
+	logs?: {
+		level: 'info' | 'warn' | 'error';
+		message: string;
+		timestamp: number;
+	}[];
+	links?: {
+		uri: string;
+		label: string;
+		tooltip?: string;
+	}[];
+	/**
+	 * Optional icon to display for this agent's current state.
+	 * If not provided, VS Code will choose an appropriate icon based on the status.
+	 */
+	icon?: {
+		id: string;
+		color?: string;
+	};
+}
+
+export interface IRemoteCodingAgentStatusUpdate {
+	agentId: string;
+	jobId?: string;
+	timestamp: number;
+	data: IRemoteCodingAgentStatusData;
+	/**
+	 * Optional command to execute when this status item is clicked in the tree view.
+	 */
+	command?: string;
+}
+
+export interface IRemoteCodingAgentStatusProvider {
+	onDidUpdateStatus: Event<IRemoteCodingAgentStatusUpdate>;
+}
+
 export interface IRemoteCodingAgentsService {
 	readonly _serviceBrand: undefined;
 	getRegisteredAgents(): IRemoteCodingAgent[];
 	getAvailableAgents(): IRemoteCodingAgent[];
 	registerAgent(agent: IRemoteCodingAgent): void;
+	onDidUpdateStatus: Event<IRemoteCodingAgentStatusUpdate>;
+	registerStatusProvider(provider: IRemoteCodingAgentStatusProvider): IDisposable;
+	reportStatus(update: IRemoteCodingAgentStatusUpdate): void;
+	getCurrentStatusUpdates(): IRemoteCodingAgentStatusUpdate[];
 }
 
 export const IRemoteCodingAgentsService = createDecorator<IRemoteCodingAgentsService>('remoteCodingAgentsService');
@@ -33,6 +83,12 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 	private readonly _ctxHasRemoteCodingAgent: IContextKey<boolean>;
 	private readonly agents: IRemoteCodingAgent[] = [];
 	private readonly contextKeys = new Set<string>();
+	private readonly statusProviders = new Set<IRemoteCodingAgentStatusProvider>();
+	private readonly _onDidUpdateStatus = this._register(new Emitter<IRemoteCodingAgentStatusUpdate>());
+	readonly onDidUpdateStatus = this._onDidUpdateStatus.event;
+
+	// Keep track of recent status updates so views can get current state
+	private readonly recentStatusUpdates = new Map<string, IRemoteCodingAgentStatusUpdate>();
 
 	constructor(
 		@IContextKeyService private readonly contextKeyService: IContextKeyService
@@ -90,6 +146,34 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 	private updateContextKeys(): void {
 		const hasAvailableAgent = this.getAvailableAgents().length > 0;
 		this._ctxHasRemoteCodingAgent.set(hasAvailableAgent);
+	}
+
+	registerStatusProvider(provider: IRemoteCodingAgentStatusProvider): IDisposable {
+		this.statusProviders.add(provider);
+		const disposable = this._register(provider.onDidUpdateStatus(update => {
+			this._onDidUpdateStatus.fire(update);
+		}));
+
+		return toDisposable(() => {
+			this.statusProviders.delete(provider);
+			disposable.dispose();
+		});
+	}
+
+	reportStatus(update: IRemoteCodingAgentStatusUpdate): void {
+		console.log('RemoteCodingAgentsService: reportStatus called with:', update);
+
+		// Store the update for late-joining views
+		const key = `${update.agentId}-${update.jobId || 'default'}`;
+		this.recentStatusUpdates.set(key, update);
+
+		this._onDidUpdateStatus.fire(update);
+		console.log('RemoteCodingAgentsService: Event fired to', this._onDidUpdateStatus.event);
+	}
+
+	// New method to get current status updates for views that join late
+	getCurrentStatusUpdates(): IRemoteCodingAgentStatusUpdate[] {
+		return Array.from(this.recentStatusUpdates.values());
 	}
 }
 

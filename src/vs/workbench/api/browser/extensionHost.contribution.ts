@@ -19,6 +19,7 @@ import './mainThreadLocalization.js';
 import './mainThreadBulkEdits.js';
 import './mainThreadLanguageModels.js';
 import './mainThreadChatAgents2.js';
+import './mainThreadRemoteCodingAgents.js';
 import './mainThreadChatCodeMapper.js';
 import './mainThreadLanguageModelTools.js';
 import './mainThreadEmbeddings.js';
