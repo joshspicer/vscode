@@ -82,6 +82,7 @@ export class RemoteCodingAgentsChatProvider extends Disposable {
 
 			metadata: {
 				themeIcon: Codicon.robot,
+				isSticky: true,
 			},
 			extensionId: nullExtensionDescription.identifier,
 			extensionDisplayName: nullExtensionDescription.name,
@@ -161,8 +162,6 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 
 		// Register this session for streaming updates
 		// The session service will handle streaming updates even after this method returns
-		// TODO: We need to instead get an instance of chatmodel and use this chat's sessionId to
-		//       directly write responses to it
 		const sessionDisposable = this.sessionService.registerActiveSession(this.remoteCodingAgent.id, jobId, progress);
 
 		// Clean up the session when the token is cancelled

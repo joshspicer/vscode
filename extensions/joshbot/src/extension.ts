@@ -99,7 +99,37 @@ function queueStatusUpdatesForJob(jobId: string, title: string) {
 		} else if (progress < 1.0) {
 			return 'Finalizing implementation...';
 		} else {
-			return 'Finished!';
+			return 'Opening pull request...';
+		}
+	};
+
+	const getFilesChangedForProgressLevel = (progress: number) => {
+		if (progress < 0.2) {
+			return [
+				{ uri: vscode.Uri.parse('file:///path/to/file1.js'), type: vscode.RemoteCodingAgentFileChangeType.Created },
+				{ uri: vscode.Uri.parse('file:///path/to/file2.js'), type: vscode.RemoteCodingAgentFileChangeType.Created },
+			];
+		} else if (progress < 0.4) {
+			return [
+				{ uri: vscode.Uri.parse('file:///path/to/file1.js'), type: vscode.RemoteCodingAgentFileChangeType.Modified },
+				{ uri: vscode.Uri.parse('file:///path/to/file3.js'), type: vscode.RemoteCodingAgentFileChangeType.Created },
+			];
+		} else if (progress < 0.6) {
+			return [
+				{ uri: vscode.Uri.parse('file:///path/to/file1.js'), type: vscode.RemoteCodingAgentFileChangeType.Modified },
+				{ uri: vscode.Uri.parse('file:///path/to/file2.js'), type: vscode.RemoteCodingAgentFileChangeType.Modified },
+				{ uri: vscode.Uri.parse('file:///path/to/file4.js'), type: vscode.RemoteCodingAgentFileChangeType.Created },
+			];
+			// } else if (progress < 0.8) {
+			// 	return [
+			// 		{ uri: vscode.Uri.parse('file:///path/to/file1.js'), type: vscode.RemoteCodingAgentFileChangeType.Modified },
+			// 		{ uri: vscode.Uri.parse('file:///path/to/file2.js'), type: vscode.RemoteCodingAgentFileChangeType.Modified },
+			// 	];
+		} else {
+			return [
+				{ uri: vscode.Uri.parse('file:///path/to/file8.js'), type: vscode.RemoteCodingAgentFileChangeType.Created },
+				{ uri: vscode.Uri.parse('file:///path/to/file9.js'), type: vscode.RemoteCodingAgentFileChangeType.Created },
+			];
 		}
 	};
 
@@ -114,11 +144,9 @@ function queueStatusUpdatesForJob(jobId: string, title: string) {
 					content: getContentForProgressLevel(progress),
 					timestamp: Date.now()
 				}],
-				// filesChanged: progress > 0.5 ? [{
-				// 	uri: vscode.Uri.parse(`file:///path/to/changed/file-${jobId}.js`),
-				// 	type: vscode.RemoteCodingAgentFileChangeType.Modified,
-				// 	preview: 'function doSomething() { /* implementation */ }'
-				// }] : [],
+				filesChanged: [
+					...getFilesChangedForProgressLevel(progress)
+				],
 				icon: new vscode.ThemeIcon('check'),
 			}
 		};

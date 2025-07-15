@@ -35,3 +35,20 @@
 	font-size: 16px;
 	margin-right: 8px;
 }
+
+/* Working set styling for coding agents */
+.coding-agent-working-set {
+	margin-top: 8px;
+	border-top: 1px solid var(--vscode-chat-requestBorder);
+	padding-top: 8px;
+}
+
+.coding-agent-working-set .chat-working-set-widget {
+	border: none;
+	padding: 0;
+	border-radius: 0;
+}
+
+.coding-agent-working-set .chat-editing-session-overview {
+	margin-bottom: 4px;
+}
