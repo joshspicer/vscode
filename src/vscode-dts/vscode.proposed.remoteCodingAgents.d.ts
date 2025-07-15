@@ -23,6 +23,12 @@ declare module 'vscode' {
 		Error = 'error'
 	}
 
+	export interface RemoteCodingAgentCommandResult {
+		title: string;
+		jobId: string;
+		description: string;
+	}
+
 	export interface RemoteCodingAgentStatusData {
 		filesChanged?: {
 			uri: Uri;
@@ -53,7 +59,7 @@ declare module 'vscode' {
 
 	export interface RemoteCodingAgentStatusUpdate {
 		agentId: string;
-		jobId?: string;
+		jobId: string;
 		timestamp: number;
 		data: RemoteCodingAgentStatusData;
 		/**

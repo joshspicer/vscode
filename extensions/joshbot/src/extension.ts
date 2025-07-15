@@ -9,6 +9,7 @@ let outputChannel: vscode.OutputChannel | undefined;
 let statusEmitter: vscode.EventEmitter<vscode.RemoteCodingAgentStatusUpdate> | undefined;
 let statusProvider: vscode.RemoteCodingAgentStatusProvider | undefined;
 
+
 export function activate(context: vscode.ExtensionContext): void {
 	console.log('JoshBot extension is now active!');
 
@@ -35,32 +36,85 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	// Register commands
 	context.subscriptions.push(
-		vscode.commands.registerCommand('joshbot.startCodingTask', () => {
+		vscode.commands.registerCommand('joshbot.startCodingTask', (): vscode.RemoteCodingAgentCommandResult => {
 			outputChannel?.appendLine('Starting coding task...');
 
-			// Send a status update
-			if (statusEmitter) {
-				const update: vscode.RemoteCodingAgentStatusUpdate = {
-					agentId: 'joshbot',
-					timestamp: Date.now(),
-					data: {
-						logs: [{
-							level: vscode.RemoteCodingAgentLogLevel.Info,
-							message: 'Started Task',
-							timestamp: Date.now()
-						}],
-						icon: new vscode.ThemeIcon('robot')
-					}
-				};
-				statusEmitter.fire(update);
-				outputChannel?.appendLine(`Fired status update: ${JSON.stringify(update, null, 2)}`);
-			}
+			const jobId = getJobName();
+			const { title, description } = getRandomTask();
+
+			// Start queueing status updates for this job
+			queueStatusUpdatesForJob(jobId, title);
+			return {
+				title,
+				jobId,
+				description
+			};
 		})
 	);
+}
+
+function getJobName(): string {
+	const getRandomWord = () => {
+		const words = ['frog', 'blue', 'green', 'red', 'yellow', 'purple', 'orange', 'cat', 'dog', 'fish', 'bird', 'tree', 'flower', 'sky', 'cloud', 'mountain', 'river'];
+		return words[Math.floor(Math.random() * words.length)];
+	};
+	return `${getRandomWord()}-${getRandomWord()}-${getRandomWord()}`;
+}
+
+function getRandomTask(): { title: string; description: string } {
+	const tasks = [
+		{ title: 'Implement feature X', description: 'Add feature X to the application.' },
+		{ title: 'Fix bug Y', description: 'Resolve the issue with bug Y in the codebase.' },
+		{ title: 'Refactor module Z', description: 'Improve the structure of module Z for better maintainability.' },
+		{ title: 'Write tests for A', description: 'Create unit tests for component A to ensure reliability.' },
+		{ title: 'Update documentation', description: 'Revise the documentation to reflect recent changes.' },
+		{ title: 'Optimize performance', description: 'Enhance the performance of the application by optimizing critical paths.' },
+		{ title: 'Add new configuration option', description: 'Implement a new configuration option for users to customize behavior.' },
+		{ title: 'Integrate third-party library', description: 'Add and configure a third-party library to extend functionality.' }
+	];
+	return tasks[Math.floor(Math.random() * tasks.length)];
 }
 
 export function deactivate(): void {
 	outputChannel?.appendLine('JoshBot extension deactivated');
 	statusEmitter?.dispose();
 	outputChannel?.dispose();
+}
+function queueStatusUpdatesForJob(jobId: string, title: string) {
+	if (!statusEmitter) {
+		outputChannel?.appendLine('ERROR: Status emitter is not initialized');
+		console.error('ERROR: Status emitter is not initialized');
+		return;
+	}
+
+	const update = (jobId: string, title: string, progress: number) => {
+		const statusUpdate: vscode.RemoteCodingAgentStatusUpdate = {
+			agentId: 'joshbot',
+			jobId,
+			timestamp: Date.now(),
+			data: {
+				messages: [{
+					type: vscode.RemoteCodingAgentMessageType.Response,
+					content: `Progress update for job ${jobId}: ${title} - ${progress * 100}% complete`,
+					timestamp: Date.now()
+				}],
+				icon: new vscode.ThemeIcon('check'),
+			}
+		};
+		statusEmitter?.fire(statusUpdate);
+		outputChannel?.appendLine(`Status update for job ${jobId}: ${title} - ${progress * 100}% complete`);
+	};
+
+	const TOTAL = 5;
+	let currentStep = 0;
+
+	const intervalId = setInterval(() => {
+		currentStep++;
+		update(jobId, title, currentStep / TOTAL);
+
+		if (currentStep >= TOTAL) {
+			clearInterval(intervalId);
+		}
+	}, 5000); // Update every 5 seconds
+
 }

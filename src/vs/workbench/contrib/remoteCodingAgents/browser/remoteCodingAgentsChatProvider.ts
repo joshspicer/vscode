@@ -13,6 +13,7 @@ import { IChatAgentImplementation, IChatAgentRequest, IChatAgentResult, IChatAge
 import { ChatAgentLocation, ChatModeKind } from '../../chat/common/constants.js';
 import { IChatProgress } from '../../chat/common/chatService.js';
 import { IRemoteCodingAgentsService, IRemoteCodingAgent } from '../common/remoteCodingAgentsService.js';
+import { IRemoteCodingAgentsSessionService } from '../common/remoteCodingAgentsSessionService.js';
 import { nullExtensionDescription } from '../../../services/extensions/common/extensions.js';
 
 
@@ -32,7 +33,8 @@ export class RemoteCodingAgentsChatProvider extends Disposable {
 	constructor(
 		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
 		@IChatAgentService private readonly chatAgentService: IChatAgentService,
-		@ICommandService private readonly commandService: ICommandService
+		@ICommandService private readonly commandService: ICommandService,
+		@IRemoteCodingAgentsSessionService private readonly sessionService: IRemoteCodingAgentsSessionService
 	) {
 		super();
 		console.log('RemoteCodingAgentsChatProvider: Initializing...');
@@ -86,7 +88,7 @@ export class RemoteCodingAgentsChatProvider extends Disposable {
 			extensionPublisherId: nullExtensionDescription.publisher
 		};
 
-		const agentImpl = new RemoteCodingAgentChatImplementation(remoteCodingAgent, this.commandService);
+		const agentImpl = new RemoteCodingAgentChatImplementation(remoteCodingAgent, this.commandService, this.sessionService);
 		const disposable = this.chatAgentService.registerDynamicAgent(agentData, agentImpl);
 
 		this.registeredAgents.set(agentId, disposable);
@@ -108,7 +110,8 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 
 	constructor(
 		private readonly remoteCodingAgent: IRemoteCodingAgent,
-		@ICommandService private readonly commandService: ICommandService
+		@ICommandService private readonly commandService: ICommandService,
+		@IRemoteCodingAgentsSessionService private readonly sessionService: IRemoteCodingAgentsSessionService
 	) {
 		super();
 	}
@@ -135,7 +138,6 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 			content: new MarkdownString(localize('remoteCodingAgent.welcome', 'I am **{0}**, a remote coding agent at your service.', displayName))
 		}]);
 
-
 		// TODO: Queue job on remote
 		const result: RemoteCodingAgentCommandResult | undefined = await this.commandService.executeCommand(
 			command,
@@ -158,10 +160,30 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 			//command: this.remoteCodingAgent.command
 		}]);
 
-		// TODO:
-		// Here, don't return, but wait for the extension to stream message through to use
-		// through the remoteCodingAgents.d.ts extension API
+		// Register this session for streaming and keep the response open
+		this.sessionService.registerActiveSession(this.remoteCodingAgent.id, jobId, progress);
 
-		return {};
+		// Return a promise that doesn't resolve immediately - this keeps the chat response open
+		return new Promise<IChatAgentResult>((resolve) => {
+			// Set up a timeout to eventually complete the response
+			const timeout = setTimeout(() => {
+				this.sessionService.unregisterActiveSession(this.remoteCodingAgent.id, jobId);
+				resolve({});
+			}, 60000); // 60 second timeout
+
+			// Handle cancellation
+			if (token.isCancellationRequested) {
+				clearTimeout(timeout);
+				this.sessionService.unregisterActiveSession(this.remoteCodingAgent.id, jobId);
+				resolve({});
+				return;
+			}
+
+			token.onCancellationRequested(() => {
+				clearTimeout(timeout);
+				this.sessionService.unregisterActiveSession(this.remoteCodingAgent.id, jobId);
+				resolve({});
+			});
+		});
 	}
 }

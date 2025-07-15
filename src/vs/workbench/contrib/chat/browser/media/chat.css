@@ -2081,3 +2081,13 @@ have to be updated for changes to the rules above, or to support more deeply nes
 	border-radius: 4px;
 	font-family: var(--monaco-monospace-font);
 }
+
+.chat-coding-agent-status {
+	margin: 4px 0;
+	padding: 4px 8px;
+	border-left: 2px solid;
+	background-color: var(--vscode-editorWidget-background);
+	border-radius: 2px;
+	font-size: 0.9em;
+	opacity: 0.8;
+}

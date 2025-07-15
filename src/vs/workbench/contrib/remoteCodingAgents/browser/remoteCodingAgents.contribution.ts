@@ -8,12 +8,14 @@ import { localize } from '../../../../nls.js';
 import { MenuRegistry } from '../../../../platform/actions/common/actions.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
 import { Registry } from '../../../../platform/registry/common/platform.js';
+import { registerSingleton, InstantiationType } from '../../../../platform/instantiation/common/extensions.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IWorkbenchContribution, Extensions as WorkbenchExtensions, IWorkbenchContributionsRegistry } from '../../../common/contributions.js';
 import { isProposedApiEnabled } from '../../../services/extensions/common/extensions.js';
 import { ExtensionsRegistry } from '../../../services/extensions/common/extensionsRegistry.js';
 import { LifecyclePhase } from '../../../services/lifecycle/common/lifecycle.js';
 import { IRemoteCodingAgent, IRemoteCodingAgentsService } from '../common/remoteCodingAgentsService.js';
+import { IRemoteCodingAgentsSessionService, RemoteCodingAgentsSessionService } from '../common/remoteCodingAgentsSessionService.js';
 import { createRemoteCodingAgentsViews, RemoteCodingAgentsViews } from './remoteCodingAgentsView.js';
 import { RemoteCodingAgentsChatProvider } from './remoteCodingAgentsChatProvider.js';
 
@@ -112,6 +114,9 @@ export class RemoteCodingAgentsContribution extends Disposable implements IWorkb
 		});
 	}
 }
+
+// Register the session service
+registerSingleton(IRemoteCodingAgentsSessionService, RemoteCodingAgentsSessionService, InstantiationType.Delayed);
 
 const workbenchRegistry = Registry.as<IWorkbenchContributionsRegistry>(WorkbenchExtensions.Workbench);
 workbenchRegistry.registerWorkbenchContribution(RemoteCodingAgentsContribution, LifecyclePhase.Restored);
