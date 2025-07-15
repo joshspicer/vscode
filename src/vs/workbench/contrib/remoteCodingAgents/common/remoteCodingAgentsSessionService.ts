@@ -6,7 +6,7 @@
 import { Disposable, IDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
-import { IChatProgress, ICodingAgentStatusUpdate } from '../../../contrib/chat/common/chatService.js';
+import { IChatProgress, ICodingAgentStatusUpdate, IChatService } from '../../../contrib/chat/common/chatService.js';
 import { IRemoteCodingAgentStatusUpdate, IRemoteCodingAgentsService } from './remoteCodingAgentsService.js';
 import { URI } from '../../../../base/common/uri.js';
 import { ThemeColor } from '../../../../base/common/themables.js';
@@ -15,13 +15,23 @@ export const IRemoteCodingAgentsSessionService = createDecorator<IRemoteCodingAg
 
 export interface IRemoteCodingAgentsSessionService {
 	readonly _serviceBrand: undefined;
-	registerActiveSession(agentId: string, jobId: string, progress: (progress: IChatProgress[]) => void): IDisposable;
+	registerActiveSession(agentId: string, jobId: string, chatSessionId: string, progress: (progress: IChatProgress[]) => void): IDisposable;
 	streamProgressToSession(agentId: string, jobId: string, progress: IChatProgress): void;
 	getSessionFiles(agentId: string, jobId: string): URI[];
 	onDidUpdateSessionFiles: Event<{ agentId: string; jobId: string; files: URI[] }>;
+
+	// New methods for cross-session capabilities
+	getAllActiveSessions(): { agentId: string; jobId: string; chatSessionId: string }[];
+	streamToAnySession(chatSessionId: string, progress: IChatProgress): void;
+	getSessionByChatId(chatSessionId: string): { agentId: string; jobId: string } | undefined;
+
+	// Methods for chat widget integration
+	isCodingAgentSession(chatSessionId: string): boolean;
+	getCodingAgentForSession(chatSessionId: string): string | undefined;
 }
 
 interface IActiveSession {
+	chatSessionId: string;
 	progress: (progress: IChatProgress[]) => void;
 	isActive: boolean;
 	files: Map<string, { uri: URI; changeType: 'created' | 'modified' | 'deleted' }>;
@@ -35,7 +45,8 @@ export class RemoteCodingAgentsSessionService extends Disposable implements IRem
 	readonly onDidUpdateSessionFiles = this._onDidUpdateSessionFiles.event;
 
 	constructor(
-		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService
+		@IRemoteCodingAgentsService private readonly remoteCodingAgentsService: IRemoteCodingAgentsService,
+		@IChatService private readonly chatService: IChatService
 	) {
 		super();
 
@@ -49,11 +60,12 @@ export class RemoteCodingAgentsSessionService extends Disposable implements IRem
 		console.log('RemoteCodingAgentsSessionService: Initialization complete');
 	}
 
-	registerActiveSession(agentId: string, jobId: string, progress: (progress: IChatProgress[]) => void): IDisposable {
+	registerActiveSession(agentId: string, jobId: string, chatSessionId: string, progress: (progress: IChatProgress[]) => void): IDisposable {
 		const sessionKey = this.getSessionKey(agentId, jobId);
-		console.log(`RemoteCodingAgentsSessionService: Registering session ${sessionKey}`);
+		console.log(`RemoteCodingAgentsSessionService: Registering session ${sessionKey} with chatSessionId: ${chatSessionId}`);
 
 		const session: IActiveSession = {
+			chatSessionId,
 			progress,
 			isActive: true,
 			files: new Map()
@@ -85,7 +97,8 @@ export class RemoteCodingAgentsSessionService extends Disposable implements IRem
 
 		if (session && session.isActive) {
 			try {
-				session.progress([progress]);
+				// Stream directly to the chat model - this is the primary method now
+				this.streamToAnySession(session.chatSessionId, progress);
 			} catch (error) {
 				// Session might have been disposed, remove it
 				console.error(`Failed to stream progress to session ${sessionKey}:`, error);
@@ -178,5 +191,61 @@ export class RemoteCodingAgentsSessionService extends Disposable implements IRem
 
 	private getSessionKey(agentId: string, jobId: string): string {
 		return `${agentId}-${jobId}`;
+	}
+
+	// NEW METHOD: Stream to any chat session by ID
+	streamToAnySession(chatSessionId: string, progress: IChatProgress): void {
+		const chatModel = this.chatService.getSession(chatSessionId);
+		if (chatModel) {
+			// Get the last request to attach progress to
+			const requests = chatModel.getRequests();
+			const lastRequest = requests[requests.length - 1];
+
+			if (lastRequest) {
+				console.log(`RemoteCodingAgentsSessionService: Streaming progress to chat session ${chatSessionId}`);
+				chatModel.acceptResponseProgress(lastRequest, progress, false);
+			} else {
+				console.warn(`RemoteCodingAgentsSessionService: No requests found in chat session ${chatSessionId}`);
+			}
+		} else {
+			console.warn(`RemoteCodingAgentsSessionService: Chat session ${chatSessionId} not found`);
+		}
+	}
+
+	// NEW METHOD: Get all active sessions
+	getAllActiveSessions(): { agentId: string; jobId: string; chatSessionId: string }[] {
+		return Array.from(this.activeSessions.entries()).map(([key, session]) => {
+			const [agentId, jobId] = key.split('-');
+			return { agentId, jobId, chatSessionId: session.chatSessionId };
+		});
+	}
+
+	// NEW METHOD: Find session by chat ID
+	getSessionByChatId(chatSessionId: string): { agentId: string; jobId: string } | undefined {
+		for (const [key, session] of this.activeSessions.entries()) {
+			if (session.chatSessionId === chatSessionId) {
+				const [agentId, jobId] = key.split('-');
+				return { agentId, jobId };
+			}
+		}
+		return undefined;
+	}
+
+	// NEW METHOD: Check if a chat session ID corresponds to a coding agent session
+	isCodingAgentSession(chatSessionId: string): boolean {
+		return Array.from(this.activeSessions.values()).some(session =>
+			session.chatSessionId === chatSessionId
+		);
+	}
+
+	// NEW METHOD: Get the coding agent ID for a specific chat session
+	getCodingAgentForSession(chatSessionId: string): string | undefined {
+		for (const [key, session] of this.activeSessions.entries()) {
+			if (session.chatSessionId === chatSessionId) {
+				const [agentId] = key.split('-');
+				return agentId;
+			}
+		}
+		return undefined;
 	}
 }

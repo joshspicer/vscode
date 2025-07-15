@@ -77,11 +77,40 @@ export class ChatWorkingSetWidget extends Disposable {
 		dom.clearNode(this.container);
 		this.listDisposables.clear();
 
+		// Always create the list infrastructure, even if no entries initially
+		// File list container
+		const workingSetContainer = dom.append(this.container, dom.$('.chat-editing-session-list'));
+		if (!this.chatEditList) {
+			this.chatEditList = this.listDisposables.add(this.chatEditListPool.get());
+			const list = this.chatEditList.object;
+
+			this.listDisposables.add(list.onDidFocus(() => {
+				this._onDidFocus.fire();
+			}));
+
+			this.listDisposables.add(list.onDidOpen(async (e) => {
+				if (e.element?.kind === 'reference' && URI.isUri(e.element.reference)) {
+					await this.editorService.openEditor({
+						resource: e.element.reference,
+						options: e.editorOptions
+					}, e.sideBySide ? SIDE_GROUP : ACTIVE_GROUP);
+				}
+			}));
+
+			this.listDisposables.add(addDisposableListener(list.getHTMLElement(), 'click', e => {
+				this._onDidFocus.fire();
+			}, true));
+
+			dom.append(workingSetContainer, list.getHTMLElement());
+		}
+
 		if (!this._entries.length) {
+			// No entries, but list is still set up for later updates
+			console.log(`ChatWorkingSetWidget: No entries to display, but list infrastructure is ready`);
 			return;
 		}
 
-		// Overview section
+		// Overview section - only show when there are files
 		const overviewRegion = dom.append(this.container, dom.$('.chat-editing-session-overview'));
 		const overviewTitle = dom.append(overviewRegion, dom.$('.working-set-title'));
 		const overviewFileCount = dom.append(overviewTitle, dom.$('span.working-set-count'));
@@ -112,33 +141,7 @@ export class ChatWorkingSetWidget extends Disposable {
 			}));
 		}
 
-		// File list
-		const workingSetContainer = dom.append(this.container, dom.$('.chat-editing-session-list'));
-		if (!this.chatEditList) {
-			this.chatEditList = this.listDisposables.add(this.chatEditListPool.get());
-			const list = this.chatEditList.object;
-
-			this.listDisposables.add(list.onDidFocus(() => {
-				this._onDidFocus.fire();
-			}));
-
-			this.listDisposables.add(list.onDidOpen(async (e) => {
-				if (e.element?.kind === 'reference' && URI.isUri(e.element.reference)) {
-					await this.editorService.openEditor({
-						resource: e.element.reference,
-						options: e.editorOptions
-					}, e.sideBySide ? SIDE_GROUP : ACTIVE_GROUP);
-				}
-			}));
-
-			this.listDisposables.add(addDisposableListener(list.getHTMLElement(), 'click', e => {
-				this._onDidFocus.fire();
-			}, true));
-
-			dom.append(workingSetContainer, list.getHTMLElement());
-		}
-
-		// Convert entries to list items
+		// Convert entries to list items and update the list
 		const listItems: IChatCollapsibleListItem[] = this._entries.map(entry => ({
 			reference: entry.uri,
 			kind: 'reference' as const,
@@ -146,6 +149,8 @@ export class ChatWorkingSetWidget extends Disposable {
 			title: basename(entry.uri.path),
 			state: entry.state
 		}));
+
+		console.log(`ChatWorkingSetWidget: Created ${listItems.length} list items:`, listItems);
 
 		// Layout list
 		const maxItemsShown = 6;
@@ -156,16 +161,22 @@ export class ChatWorkingSetWidget extends Disposable {
 		list.getHTMLElement().style.height = `${height}px`;
 		list.splice(0, list.length, listItems);
 
+		console.log(`ChatWorkingSetWidget: List updated with ${itemsShown} items shown (max: ${maxItemsShown}), height: ${height}px`);
+		console.log(`ChatWorkingSetWidget: List element:`, list.getHTMLElement());
+		console.log(`ChatWorkingSetWidget: List length after splice:`, list.length);
+
 		this._onDidChangeHeight.fire();
 	}
 
 	setEntries(entries: IWorkingSetEntry[]): void {
+		console.log(`ChatWorkingSetWidget: setEntries called with ${entries.length} entries:`, entries);
 		this._entries = entries.sort((a, b) => {
 			if (a.state !== undefined && b.state !== undefined && a.state !== b.state) {
 				return a.state - b.state;
 			}
 			return a.uri.toString().localeCompare(b.uri.toString());
 		});
+		console.log(`ChatWorkingSetWidget: sorted entries:`, this._entries);
 		this.render();
 	}
 

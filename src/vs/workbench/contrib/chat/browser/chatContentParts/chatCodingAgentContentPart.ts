@@ -129,6 +129,7 @@ export class ChatCodingAgentContentPart extends Disposable implements IChatConte
 					uri,
 					kind: 'reference' as const
 				}));
+				console.log(`chatCodingAgentContentPart: Setting ${entries.length} entries on working set widget:`, entries);
 				this.workingSetWidget.setEntries(entries);
 				this._onDidChangeHeight.fire();
 			}

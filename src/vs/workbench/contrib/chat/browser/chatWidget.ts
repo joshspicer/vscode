@@ -61,6 +61,7 @@ import { ChatAttachmentModel } from './chatAttachmentModel.js';
 import { ChatInputPart, IChatInputStyles } from './chatInputPart.js';
 import { ChatListDelegate, ChatListItemRenderer, IChatListItemTemplate, IChatRendererDelegate } from './chatListRenderer.js';
 import { ChatEditorOptions } from './chatOptions.js';
+import { IRemoteCodingAgentsSessionService } from '../../remoteCodingAgents/common/remoteCodingAgentsSessionService.js';
 import './media/chat.css';
 import './media/chatAgentHover.css';
 import './media/chatViewWelcome.css';
@@ -188,6 +189,11 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	private agentInInput: IContextKey<boolean>;
 	private currentRequest: Promise<void> | undefined;
 
+	// Coding agent locking state
+	private _lockedToCodingAgent: IChatAgentData | undefined;
+	private _codingAgentPrefix: string = '';
+	private _prefixLockEnabled: boolean = false;
+
 
 	private _visible = false;
 	public get visible() {
@@ -292,7 +298,8 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		@ITelemetryService private readonly telemetryService: ITelemetryService,
 		@IPromptsService private readonly promptsService: IPromptsService,
 		@ILanguageModelToolsService private readonly toolsService: ILanguageModelToolsService,
-		@IWorkspaceContextService private readonly contextService: IWorkspaceContextService
+		@IWorkspaceContextService private readonly contextService: IWorkspaceContextService,
+		@IRemoteCodingAgentsSessionService private readonly remoteCodingAgentsSessionService: IRemoteCodingAgentsSessionService
 	) {
 		super();
 
@@ -511,6 +518,53 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 	get attachmentModel(): ChatAttachmentModel {
 		return this.input.attachmentModel;
+	}
+
+	/**
+	 * Locks the chat widget to a specific coding agent participant
+	 */
+	public lockToCodingAgent(agent: IChatAgentData): void {
+		this._lockedToCodingAgent = agent;
+		this._codingAgentPrefix = `${chatAgentLeader}${agent.name} `;
+		this._prefixLockEnabled = true;
+
+		// Ensure the input starts with the coding agent
+		this.ensureCodingAgentPrefix();
+
+		// Update visual state
+		this.updateCodingAgentVisualState(true);
+
+		// Set placeholder to indicate locked mode
+		this.input.inputEditor.updateOptions({ placeholder: `Locked to ${agent.fullName || agent.name} - Type your message...` });
+	}
+
+	/**
+	 * Unlocks the chat widget from coding agent mode
+	 */
+	public unlockFromCodingAgent(): void {
+		this._lockedToCodingAgent = undefined;
+		this._codingAgentPrefix = '';
+		this._prefixLockEnabled = false;
+
+		// Update visual state
+		this.updateCodingAgentVisualState(false);
+
+		// Reset placeholder
+		this.input.inputEditor.updateOptions({ placeholder: '' });
+	}
+
+	/**
+	 * Checks if the widget is currently locked to a coding agent
+	 */
+	public get isLockedToCodingAgent(): boolean {
+		return !!this._lockedToCodingAgent;
+	}
+
+	/**
+	 * Gets the currently locked coding agent, if any
+	 */
+	public get lockedCodingAgent(): IChatAgentData | undefined {
+		return this._lockedToCodingAgent;
 	}
 
 	async waitForReady(): Promise<void> {
@@ -1115,6 +1169,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			if (!isInput) {
 				this._register(this.inlineInputPart.inputEditor.onDidChangeModelContent(() => {
 					this.scrollToCurrentItem(currentElement);
+					this.handleInputContentChange();
 				}));
 
 				this._register(this.inlineInputPart.inputEditor.onDidChangeCursorSelection((e) => {
@@ -1313,6 +1368,12 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			this.refreshParsedInput();
 		}));
 		this._register(this.input.onDidFocus(() => this._onDidFocus.fire()));
+
+		// Register coding agent validation listener
+		this._register(this.input.inputEditor.onDidChangeModelContent(() => {
+			this.handleInputContentChange();
+		}));
+
 		this._register(this.input.onDidAcceptFollowup(e => {
 			if (!this.viewModel) {
 				return;
@@ -1376,6 +1437,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		this._register(this.inputEditor.onDidChangeModelContent(() => {
 			this.parsedChatRequest = undefined;
 			this.updateChatInputContext();
+			this.handleInputContentChange(); // Handle coding agent locking
 		}));
 		this._register(this.chatAgentService.onDidChangeAgents(() => {
 			this.parsedChatRequest = undefined;
@@ -1489,6 +1551,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 		this.renderer.updateViewModel(this.viewModel);
 		this.updateChatInputContext();
+		this.updateCodingAgentLockState(); // Update coding agent lock state when model changes
 	}
 
 	getFocus(): ChatTreeItem | undefined {
@@ -1632,6 +1695,36 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			await this.input.generating;
 			if (Date.now() - start > generatingAutoSubmitWindow) {
 				return;
+			}
+		}
+
+		// Get the current input value
+		const currentInputValue = query ? query.query : this.getInput();
+
+		// Check if this is a message to joshbot (or any other coding agent)
+		if (!this.isLockedToCodingAgent && currentInputValue.trim().startsWith('@joshbot')) {
+			// This is a message to joshbot, try to find the agent and lock to it
+			const agents = this.chatAgentService.getAgents();
+			const joshbotAgent = agents.find(agent => agent.id === 'joshbot' || agent.name === 'joshbot');
+			if (joshbotAgent) {
+				this.lockToCodingAgent(joshbotAgent);
+			}
+		}
+
+		// If locked to coding agent, ensure the prefix is added
+		if (this._lockedToCodingAgent && this._codingAgentPrefix) {
+			if (query) {
+				// For programmatic input, ensure the prefix is added
+				if (!query.query.startsWith(this._codingAgentPrefix)) {
+					query.query = this._codingAgentPrefix + this.removeExistingAgentPrefix(query.query);
+				}
+			} else {
+				// For user input, update the editor value if needed
+				const currentValue = this.getInput();
+				if (!currentValue.startsWith(this._codingAgentPrefix)) {
+					const newValue = this._codingAgentPrefix + this.removeExistingAgentPrefix(currentValue);
+					this.input.inputEditor.setValue(newValue);
+				}
 			}
 		}
 
@@ -2003,6 +2096,149 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 		// add to attached list to make the instructions sticky
 		//this.inputPart.attachmentModel.addContext(...computer.autoAddedInstructions);
+	}
+
+	/**
+	 * Updates the coding agent lock state based on session service
+	 */
+	private updateCodingAgentLockState(): void {
+		if (this.viewModel?.model) {
+			const sessionId = this.viewModel.model.sessionId;
+			const isCodingAgentSession = this.remoteCodingAgentsSessionService.isCodingAgentSession(sessionId);
+
+			console.log(`[ChatWidget] Checking session ${sessionId} - Is coding agent session: ${isCodingAgentSession}`);
+
+			if (isCodingAgentSession) {
+				// Find the appropriate coding agent for this session
+				const codingAgent = this.findCodingAgentForSession(sessionId);
+				if (codingAgent && !this.isLockedToCodingAgent) {
+					console.log(`[ChatWidget] Locking to coding agent: ${codingAgent.name}`);
+					this.lockToCodingAgent(codingAgent);
+				}
+			} else if (this.isLockedToCodingAgent) {
+				console.log(`[ChatWidget] Unlocking from coding agent`);
+				this.unlockFromCodingAgent();
+			}
+		}
+	}
+
+	/**
+	 * Finds the appropriate coding agent for a session
+	 */
+	private findCodingAgentForSession(sessionId: string): IChatAgentData | undefined {
+		// Get the agent ID from the session service
+		const agentId = this.remoteCodingAgentsSessionService.getCodingAgentForSession(sessionId);
+		if (agentId) {
+			// Find the agent data from the chat agent service
+			const agents = this.chatAgentService.getAgents();
+			return agents.find(agent => agent.id === agentId);
+		}
+
+		// Fallback: find any coding agent
+		const agents = this.chatAgentService.getAgents();
+		return agents.find(agent =>
+			agent.isCodingAgent ||
+			agent.name.toLowerCase().includes('coding') ||
+			agent.name.toLowerCase().includes('code') ||
+			agent.id.includes('coding') ||
+			agent.id === 'joshbot' || // Specifically include joshbot
+			agent.name === 'joshbot'
+		);
+	}
+
+	/**
+	 * Ensures the input starts with the coding agent prefix
+	 */
+	private ensureCodingAgentPrefix(): void {
+		if (!this._lockedToCodingAgent || !this._codingAgentPrefix || !this._prefixLockEnabled) {
+			return;
+		}
+
+		const currentValue = this.inputEditor.getValue();
+		if (!currentValue.startsWith(this._codingAgentPrefix)) {
+			// Remove any existing agent prefix first
+			const withoutExistingAgent = this.removeExistingAgentPrefix(currentValue);
+			const newValue = this._codingAgentPrefix + withoutExistingAgent;
+
+			// Set the value and position cursor after the agent prefix
+			this.inputEditor.setValue(newValue);
+			this.inputEditor.setPosition({
+				lineNumber: 1,
+				column: this._codingAgentPrefix.length + 1
+			});
+		}
+	}
+
+	/**
+	 * Removes any existing agent prefix from the input
+	 */
+	private removeExistingAgentPrefix(input: string): string {
+		// Remove any @agent prefixes
+		return input.replace(/^@\w+\s*/, '').trim();
+	}
+
+	/**
+	 * Updates visual styling for coding agent locked state
+	 */
+	private updateCodingAgentVisualState(locked: boolean): void {
+		if (locked) {
+			this.inputContainer?.classList.add('coding-agent-locked');
+		} else {
+			this.inputContainer?.classList.remove('coding-agent-locked');
+		}
+	}
+
+	/**
+	 * Handles input content change to maintain agent lock
+	 */
+	private handleInputContentChange(): void {
+		if (this._lockedToCodingAgent && this._prefixLockEnabled) {
+			// Validate the prefix immediately
+			this.validateCodingAgentPrefix();
+		}
+	}
+
+	/**
+	 * Validates and fixes the coding agent prefix if needed
+	 */
+	private validateCodingAgentPrefix(): void {
+		if (!this._lockedToCodingAgent || !this._codingAgentPrefix || !this._prefixLockEnabled) {
+			return;
+		}
+
+		const currentValue = this.inputEditor.getValue();
+
+		// If it's empty, don't enforce anything
+		if (!currentValue.trim()) {
+			return;
+		}
+
+		const currentPosition = this.inputEditor.getPosition();
+
+		// Check if the prefix is still intact
+		if (!currentValue.startsWith(this._codingAgentPrefix)) {
+			// If user is typing before the prefix, restore it
+			const withoutAgent = this.removeExistingAgentPrefix(currentValue);
+			const newValue = this._codingAgentPrefix + withoutAgent;
+
+			// Calculate new cursor position
+			const prefixLength = this._codingAgentPrefix.length;
+			const newPosition = {
+				lineNumber: 1,
+				column: Math.max(prefixLength + 1, (currentPosition?.column || 1))
+			};
+
+			this.inputEditor.setValue(newValue);
+			this.inputEditor.setPosition(newPosition);
+		}
+
+		// Prevent cursor from being positioned before the agent prefix
+		if (currentPosition && currentPosition.column <= this._codingAgentPrefix.length) {
+			this.inputEditor.setPosition({
+				lineNumber: 1,
+				column: this._codingAgentPrefix.length + 1
+			});
+		}
 	}
 }
 

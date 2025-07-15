@@ -119,9 +119,10 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 
 	async invoke(request: IChatAgentRequest, progress: (progress: IChatProgress[]) => void, history: any[], token: CancellationToken): Promise<IChatAgentResult> {
 		const message = request.message.trim();
+		const chatSessionId = request.sessionId;
 		// const command = request.command;
 		try {
-			return this.handleGeneralQuery(message, progress, token);
+			return this.handleGeneralQuery(message, progress, token, chatSessionId);
 		} catch (error) {
 			progress([{
 				kind: 'markdownContent',
@@ -131,7 +132,7 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 		}
 	}
 
-	private async handleGeneralQuery(message: string, progress: (progress: IChatProgress[]) => void, token: CancellationToken): Promise<IChatAgentResult> {
+	private async handleGeneralQuery(message: string, progress: (progress: IChatProgress[]) => void, token: CancellationToken, chatSessionId: string): Promise<IChatAgentResult> {
 		const { displayName, command } = this.remoteCodingAgent;
 		progress([{
 			kind: 'markdownContent',
@@ -162,7 +163,7 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 
 		// Register this session for streaming updates
 		// The session service will handle streaming updates even after this method returns
-		const sessionDisposable = this.sessionService.registerActiveSession(this.remoteCodingAgent.id, jobId, progress);
+		const sessionDisposable = this.sessionService.registerActiveSession(this.remoteCodingAgent.id, jobId, chatSessionId, progress);
 
 		// Clean up the session when the token is cancelled
 		token.onCancellationRequested(() => {
