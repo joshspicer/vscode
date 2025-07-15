@@ -119,7 +119,6 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 	async invoke(request: IChatAgentRequest, progress: (progress: IChatProgress[]) => void, history: any[], token: CancellationToken): Promise<IChatAgentResult> {
 		const message = request.message.trim();
 		// const command = request.command;
-
 		try {
 			return this.handleGeneralQuery(message, progress, token);
 		} catch (error) {
@@ -162,6 +161,8 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 
 		// Register this session for streaming updates
 		// The session service will handle streaming updates even after this method returns
+		// TODO: We need to instead get an instance of chatmodel and use this chat's sessionId to
+		//       directly write responses to it
 		const sessionDisposable = this.sessionService.registerActiveSession(this.remoteCodingAgent.id, jobId, progress);
 
 		// Clean up the session when the token is cancelled
@@ -169,12 +170,35 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 			sessionDisposable.dispose();
 		});
 
-		// Return immediately with metadata about the session
-		// The session service will continue to stream updates asynchronously
-		return {
-			metadata: {
-				remoteCodingAgentSessionId: `${this.remoteCodingAgent.id}-${jobId}`
-			}
-		};
+		const key = `${this.remoteCodingAgent.id}-${jobId}`;
+
+		// TODO: With the above TODO done, remove this
+		return new Promise<IChatAgentResult>((resolve) => {
+			// For now, we'll use a timeout. In a real implementation, you'd
+			// listen for a job completion event from your remote service.
+			const timeoutHandle = setTimeout(() => {
+				sessionDisposable.dispose();
+				resolve({
+					metadata: {
+						remoteCodingAgentSessionId: key,
+						completed: true
+					}
+				});
+			}, 5 * 60 * 1000); // 5 minutes
+
+			// Handle cancellation
+			token.onCancellationRequested(() => {
+				clearTimeout(timeoutHandle);
+				sessionDisposable.dispose();
+				resolve({
+					metadata: {
+						remoteCodingAgentSessionId: key,
+						cancelled: true
+					}
+				});
+			});
+		});
+
+
 	}
 }
