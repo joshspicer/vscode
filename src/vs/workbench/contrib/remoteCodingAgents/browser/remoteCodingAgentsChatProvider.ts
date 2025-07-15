@@ -160,30 +160,21 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 			//command: this.remoteCodingAgent.command
 		}]);
 
-		// Register this session for streaming and keep the response open
-		this.sessionService.registerActiveSession(this.remoteCodingAgent.id, jobId, progress);
+		// Register this session for streaming updates
+		// The session service will handle streaming updates even after this method returns
+		const sessionDisposable = this.sessionService.registerActiveSession(this.remoteCodingAgent.id, jobId, progress);
 
-		// Return a promise that doesn't resolve immediately - this keeps the chat response open
-		return new Promise<IChatAgentResult>((resolve) => {
-			// Set up a timeout to eventually complete the response
-			const timeout = setTimeout(() => {
-				this.sessionService.unregisterActiveSession(this.remoteCodingAgent.id, jobId);
-				resolve({});
-			}, 60000); // 60 second timeout
-
-			// Handle cancellation
-			if (token.isCancellationRequested) {
-				clearTimeout(timeout);
-				this.sessionService.unregisterActiveSession(this.remoteCodingAgent.id, jobId);
-				resolve({});
-				return;
-			}
-
-			token.onCancellationRequested(() => {
-				clearTimeout(timeout);
-				this.sessionService.unregisterActiveSession(this.remoteCodingAgent.id, jobId);
-				resolve({});
-			});
+		// Clean up the session when the token is cancelled
+		token.onCancellationRequested(() => {
+			sessionDisposable.dispose();
 		});
+
+		// Return immediately with metadata about the session
+		// The session service will continue to stream updates asynchronously
+		return {
+			metadata: {
+				remoteCodingAgentSessionId: `${this.remoteCodingAgent.id}-${jobId}`
+			}
+		};
 	}
 }
