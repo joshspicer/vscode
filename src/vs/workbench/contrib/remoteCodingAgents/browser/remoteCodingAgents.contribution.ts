@@ -15,6 +15,7 @@ import { ExtensionsRegistry } from '../../../services/extensions/common/extensio
 import { LifecyclePhase } from '../../../services/lifecycle/common/lifecycle.js';
 import { IRemoteCodingAgent, IRemoteCodingAgentsService } from '../common/remoteCodingAgentsService.js';
 import { createRemoteCodingAgentsViews, RemoteCodingAgentsViews } from './remoteCodingAgentsView.js';
+import { RemoteCodingAgentsChatProvider } from './remoteCodingAgentsChatProvider.js';
 
 interface IRemoteCodingAgentExtensionPoint {
 	id: string;
@@ -65,6 +66,7 @@ const extensionPoint = ExtensionsRegistry.registerExtensionPoint<IRemoteCodingAg
 
 export class RemoteCodingAgentsContribution extends Disposable implements IWorkbenchContribution {
 	private readonly views: RemoteCodingAgentsViews;
+	private readonly chatProvider: RemoteCodingAgentsChatProvider;
 
 	constructor(
 		@ILogService private readonly logService: ILogService,
@@ -76,6 +78,10 @@ export class RemoteCodingAgentsContribution extends Disposable implements IWorkb
 		// Create the tree view and store reference to prevent garbage collection
 		this.views = createRemoteCodingAgentsViews(this.instantiationService);
 		this._register(this.views);
+
+		// Create the chat provider
+		this.chatProvider = this.instantiationService.createInstance(RemoteCodingAgentsChatProvider);
+		this._register(this.chatProvider);
 
 		extensionPoint.setHandler(extensions => {
 			for (const ext of extensions) {

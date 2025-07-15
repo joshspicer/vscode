@@ -70,6 +70,7 @@ export interface IRemoteCodingAgentsService {
 	getRegisteredAgents(): IRemoteCodingAgent[];
 	getAvailableAgents(): IRemoteCodingAgent[];
 	registerAgent(agent: IRemoteCodingAgent): void;
+	onDidRegisterAgent: Event<IRemoteCodingAgent>;
 	onDidUpdateStatus: Event<IRemoteCodingAgentStatusUpdate>;
 	registerStatusProvider(provider: IRemoteCodingAgentStatusProvider): IDisposable;
 	reportStatus(update: IRemoteCodingAgentStatusUpdate): void;
@@ -86,6 +87,8 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 	private readonly statusProviders = new Set<IRemoteCodingAgentStatusProvider>();
 	private readonly _onDidUpdateStatus = this._register(new Emitter<IRemoteCodingAgentStatusUpdate>());
 	readonly onDidUpdateStatus = this._onDidUpdateStatus.event;
+	private readonly _onDidRegisterAgent = this._register(new Emitter<IRemoteCodingAgent>());
+	readonly onDidRegisterAgent = this._onDidRegisterAgent.event;
 
 	// Keep track of recent status updates so views can get current state
 	private readonly recentStatusUpdates = new Map<string, IRemoteCodingAgentStatusUpdate>();
@@ -113,6 +116,8 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 	registerAgent(agent: IRemoteCodingAgent): void {
 		// Check if agent already exists
 		const existingIndex = this.agents.findIndex(a => a.id === agent.id);
+		const isNew = existingIndex < 0;
+
 		if (existingIndex >= 0) {
 			// Update existing agent
 			this.agents[existingIndex] = agent;
@@ -132,6 +137,11 @@ export class RemoteCodingAgentsService extends Disposable implements IRemoteCodi
 		}
 
 		this.updateContextKeys();
+
+		// Fire event for new agent registrations
+		if (isNew) {
+			this._onDidRegisterAgent.fire(agent);
+		}
 	}
 
 	private isAgentAvailable(agent: IRemoteCodingAgent): boolean {
