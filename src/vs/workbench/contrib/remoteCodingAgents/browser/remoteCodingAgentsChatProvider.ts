@@ -134,7 +134,7 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 		const { displayName, command } = this.remoteCodingAgent;
 		progress([{
 			kind: 'markdownContent',
-			content: new MarkdownString(localize('remoteCodingAgent.welcome', 'I am **{0}**, a remote coding agent at your service.', displayName))
+			content: new MarkdownString(localize('remoteCodingAgent.welcome', 'I am **{0}**, a coding agent at your service.', displayName))
 		}]);
 
 		// TODO: Queue job on remote

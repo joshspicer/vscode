@@ -87,6 +87,22 @@ function queueStatusUpdatesForJob(jobId: string, title: string) {
 		return;
 	}
 
+	const getContentForProgressLevel = (progress: number): string => {
+		if (progress < 0.2) {
+			return 'Sifting through the codebase...';
+		} else if (progress < 0.4) {
+			return 'Analyzing requirements...';
+		} else if (progress < 0.6) {
+			return 'Drafting initial implementation...';
+		} else if (progress < 0.8) {
+			return 'Testing and refining code...';
+		} else if (progress < 1.0) {
+			return 'Finalizing implementation...';
+		} else {
+			return 'Finished!';
+		}
+	};
+
 	const update = (jobId: string, title: string, progress: number) => {
 		const statusUpdate: vscode.RemoteCodingAgentStatusUpdate = {
 			agentId: 'joshbot',
@@ -95,9 +111,14 @@ function queueStatusUpdatesForJob(jobId: string, title: string) {
 			data: {
 				messages: [{
 					type: vscode.RemoteCodingAgentMessageType.Response,
-					content: `Progress update for job ${jobId}: ${title} - ${progress * 100}% complete`,
+					content: getContentForProgressLevel(progress),
 					timestamp: Date.now()
 				}],
+				// filesChanged: progress > 0.5 ? [{
+				// 	uri: vscode.Uri.parse(`file:///path/to/changed/file-${jobId}.js`),
+				// 	type: vscode.RemoteCodingAgentFileChangeType.Modified,
+				// 	preview: 'function doSomething() { /* implementation */ }'
+				// }] : [],
 				icon: new vscode.ThemeIcon('check'),
 			}
 		};

@@ -6,11 +6,11 @@
 import * as dom from '../../../../../base/browser/dom.js';
 import { Emitter } from '../../../../../base/common/event.js';
 import { Disposable, IDisposable } from '../../../../../base/common/lifecycle.js';
-import { MarkdownString } from '../../../../../base/common/htmlContent.js';
 import { MarkdownRenderer } from '../../../../../editor/browser/widget/markdownRenderer/browser/markdownRenderer.js';
 import { IChatProgressRenderableResponseContent } from '../../common/chatModel.js';
 import { ICodingAgentStatusUpdate } from '../../common/chatService.js';
 import { IChatContentPart, IChatContentPartRenderContext } from './chatContentParts.js';
+import './media/chatCodingAgent.css';
 
 export class ChatCodingAgentStatusUpdateContentPart extends Disposable implements IChatContentPart {
 	public readonly domNode: HTMLElement;
@@ -28,31 +28,27 @@ export class ChatCodingAgentStatusUpdateContentPart extends Disposable implement
 		this.domNode = dom.$('.coding-agent-status-update');
 		this.domNode.classList.add('chat-coding-agent-status');
 
-		// Create minimal content
-		let content = '';
+		// Add the spinner icon directly in the DOM
+		const container = dom.$('.chat-coding-agent-status-container');
+		this.domNode.appendChild(container);
 
-		if (statusUpdate.data.filesChanged?.length) {
-			const fileCount = statusUpdate.data.filesChanged.length;
-			content += `Modified ${fileCount} file${fileCount > 1 ? 's' : ''}\n`;
+		const icon = dom.$('span.codicon.codicon-sync.codicon-modifier-spin');
+		container.appendChild(icon);
+
+		let messageText = 'Still working...';
+		// TODO: grabbing response
+		const m = statusUpdate.data.messages?.[0];
+		if (m?.type === 'response') {
+			messageText = m.content;
 		}
 
-		if (statusUpdate.data.logs?.length) {
-			const latestLog = statusUpdate.data.logs[statusUpdate.data.logs.length - 1];
-			const level = latestLog.level.toUpperCase();
-			content += `[${level}] ${latestLog.message}\n`;
-		}
+		// Add a small space between the icon and text
+		container.appendChild(document.createTextNode(' '));
 
-		if (!content.trim()) {
-			content = `Agent working...`;
-		}
-
-		const result = this._register(renderer.render(new MarkdownString(content.trim()), {
-			asyncRenderCallback: () => {
-				this._onDidChangeHeight.fire();
-			}
-		}));
-
-		this.domNode.appendChild(result.element);
+		// Add the text
+		const messageSpan = dom.$('span');
+		messageSpan.textContent = messageText;
+		container.appendChild(messageSpan);
 	}
 
 	hasSameContent(other: IChatProgressRenderableResponseContent): boolean {
