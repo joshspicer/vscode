@@ -300,6 +300,7 @@ export interface IChatPrepareToolInvocationPart {
 
 export interface ICodingAgentHasBegun {
 	readonly kind: 'codingAgentSessionBegun';
+	readonly agentDisplayName: string;
 	readonly agentId: string;
 	readonly jobId: string;
 	readonly title: string;

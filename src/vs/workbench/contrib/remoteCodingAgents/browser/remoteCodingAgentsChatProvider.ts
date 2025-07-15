@@ -15,6 +15,13 @@ import { IChatProgress } from '../../chat/common/chatService.js';
 import { IRemoteCodingAgentsService, IRemoteCodingAgent } from '../common/remoteCodingAgentsService.js';
 import { nullExtensionDescription } from '../../../services/extensions/common/extensions.js';
 
+
+interface RemoteCodingAgentCommandResult {
+	title: string;
+	jobId: string;
+	description: string;
+}
+
 /**
  * Chat provider that creates dynamic chat agents for each registered remote coding agent
  */
@@ -130,22 +137,30 @@ class RemoteCodingAgentChatImplementation extends Disposable implements IChatAge
 
 
 		// TODO: Queue job on remote
-		const result = await this.commandService.executeCommand(
+		const result: RemoteCodingAgentCommandResult | undefined = await this.commandService.executeCommand(
 			command,
+			message,
 		);
 
-		// TODO: report progress with a custom 'codingAgentSessionBegun' kind
+		if (!result) {
+			return { errorDetails: { message: localize('remoteCodingAgent.noResultError', 'No result returned from command `{0}`.', command) } };
+		}
 
-		// // Show current status if available
-		// const statusUpdates = this.remoteCodingAgentsService.getCurrentStatusUpdates()
-		// 	.filter(update => update.agentId === this.remoteCodingAgent.id);
+		const { title, description, jobId } = result;
 
-		// if (statusUpdates.length > 0) {
-		// 	progress([{
-		// 		kind: 'markdownContent',
-		// 		content: new MarkdownString(localize('remoteCodingAgent.hasRecentActivity', 'I have recent activity. '))
-		// 	}]);
-		// }
+		progress([{
+			kind: 'codingAgentSessionBegun',
+			agentDisplayName: displayName,
+			agentId: this.remoteCodingAgent.id,
+			jobId,
+			title,
+			description,
+			//command: this.remoteCodingAgent.command
+		}]);
+
+		// TODO:
+		// Here, don't return, but wait for the extension to stream message through to use
+		// through the remoteCodingAgents.d.ts extension API
 
 		return {};
 	}

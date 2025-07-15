@@ -2072,3 +2072,12 @@ have to be updated for changes to the rules above, or to support more deeply nes
 	border-style: solid;
 	background-color: var(--vscode-toolbar-hoverBackground);
 }
+
+.chat-coding-agent-session {
+	margin: 8px 0;
+	padding: 8px 12px;
+	border-left: 3px solid;
+	background-color: var(--vscode-editorWidget-background);
+	border-radius: 4px;
+	font-family: var(--monaco-monospace-font);
+}

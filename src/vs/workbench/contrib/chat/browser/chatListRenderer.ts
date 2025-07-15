@@ -49,7 +49,7 @@ import { IChatAgentMetadata } from '../common/chatAgents.js';
 import { ChatContextKeys } from '../common/chatContextKeys.js';
 import { IChatTextEditGroup } from '../common/chatModel.js';
 import { chatSubcommandLeader } from '../common/chatParserTypes.js';
-import { ChatAgentVoteDirection, ChatAgentVoteDownReason, ChatErrorLevel, IChatConfirmation, IChatContentReference, IChatElicitationRequest, IChatExtensionsContent, IChatFollowup, IChatMarkdownContent, IChatTask, IChatTaskSerialized, IChatToolInvocation, IChatToolInvocationSerialized, IChatTreeData, IChatUndoStop } from '../common/chatService.js';
+import { ChatAgentVoteDirection, ChatAgentVoteDownReason, ChatErrorLevel, IChatConfirmation, IChatContentReference, IChatElicitationRequest, IChatExtensionsContent, IChatFollowup, IChatMarkdownContent, IChatTask, IChatTaskSerialized, IChatToolInvocation, IChatToolInvocationSerialized, IChatTreeData, IChatUndoStop, ICodingAgentHasBegun } from '../common/chatService.js';
 import { IChatCodeCitations, IChatErrorDetailsPart, IChatReferences, IChatRendererContent, IChatRequestViewModel, IChatResponseViewModel, IChatViewModel, IChatWorkingProgress, isRequestVM, isResponseVM } from '../common/chatViewModel.js';
 import { getNWords } from '../common/chatWordCounter.js';
 import { CodeBlockModelCollection } from '../common/codeBlockModelCollection.js';
@@ -81,6 +81,7 @@ import { ChatCodeBlockContentProvider, CodeBlockPart } from './codeBlockPart.js'
 import { canceledName } from '../../../../base/common/errors.js';
 import { IChatRequestVariableEntry } from '../common/chatVariableEntries.js';
 import { ChatElicitationContentPart } from './chatContentParts/chatElicitationContentPart.js';
+import { ChatCodingAgentContentPart } from './chatContentParts/chatCodingAgentContentPart.js';
 import { alert } from '../../../../base/browser/ui/aria/aria.js';
 
 const $ = dom.$;
@@ -1026,6 +1027,8 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 				return this.renderChatErrorDetails(context, content, templateData);
 			} else if (content.kind === 'elicitation') {
 				return this.renderElicitation(context, content, templateData);
+			} else if (content.kind === 'codingAgentSessionBegun') {
+				return this.renderCodingAgentSession(context, content, templateData);
 			}
 
 			return this.renderNoContent(other => content.kind === other.kind);
@@ -1203,6 +1206,12 @@ export class ChatListItemRenderer extends Disposable implements ITreeRenderer<Ch
 
 	private renderElicitation(context: IChatContentPartRenderContext, elicitation: IChatElicitationRequest, templateData: IChatListItemTemplate): IChatContentPart {
 		const part = this.instantiationService.createInstance(ChatElicitationContentPart, elicitation, context);
+		part.addDisposable(part.onDidChangeHeight(() => this.updateItemHeight(templateData)));
+		return part;
+	}
+
+	private renderCodingAgentSession(context: IChatContentPartRenderContext, codingAgent: ICodingAgentHasBegun, templateData: IChatListItemTemplate): IChatContentPart {
+		const part = this.instantiationService.createInstance(ChatCodingAgentContentPart, codingAgent, this.renderer, context);
 		part.addDisposable(part.onDidChangeHeight(() => this.updateItemHeight(templateData)));
 		return part;
 	}
