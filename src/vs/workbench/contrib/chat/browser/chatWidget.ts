@@ -536,8 +536,10 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 		// Set placeholder to indicate locked mode
 		this.input.inputEditor.updateOptions({ placeholder: `Locked to ${agent.fullName || agent.name} - Type your message...` });
-	}
 
+		// Add key event handler to prevent backspace from removing the agent prefix
+		this.registerKeydownHandler();
+	}
 	/**
 	 * Unlocks the chat widget from coding agent mode
 	 */
@@ -551,6 +553,136 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 		// Reset placeholder
 		this.input.inputEditor.updateOptions({ placeholder: '' });
+
+		// Remove the keydown handler
+		this.unregisterKeydownHandler();
+	}
+
+	/**
+	 * Registers a keydown handler to prevent deleting the agent prefix
+	 */
+	private keydownHandler: IDisposable | undefined;
+
+	private registerKeydownHandler(): void {
+		// Remove any existing handler first
+		this.unregisterKeydownHandler();
+
+		// Get the DOM node of the editor
+		const editorDomNode = this.input.inputEditor.getDomNode();
+		if (!editorDomNode) {
+			return;
+		}
+
+		// Add a keydown event listener
+		this.keydownHandler = dom.addDisposableListener(editorDomNode, 'keydown', (e: KeyboardEvent) => {
+			if (!this._lockedToCodingAgent || !this._codingAgentPrefix) {
+				return;
+			}
+
+			const selection = this.input.inputEditor.getSelection();
+			const model = this.input.inputEditor.getModel();
+			if (!selection || !model) {
+				return;
+			}
+
+			const prefixLength = this._codingAgentPrefix.length;
+
+			// Prevent backspace if it would delete part of the prefix
+			if (e.key === 'Backspace') {
+				// Check if backspace would affect the prefix
+				const isAtStartOfContent = selection.startLineNumber === 1 && selection.startColumn <= prefixLength + 1;
+				const hasSelection = !selection.isEmpty();
+				const selectionIncludesPrefix = selection.startLineNumber === 1 && selection.startColumn <= prefixLength + 1;
+
+				if (isAtStartOfContent || (hasSelection && selectionIncludesPrefix)) {
+					// Prevent the default backspace behavior
+					e.preventDefault();
+					e.stopPropagation();
+
+					// If there's a selection, delete only the part after the prefix
+					if (hasSelection && selection.startLineNumber === 1 && selection.startColumn <= prefixLength + 1) {
+						const startColumn = Math.max(prefixLength + 1, selection.startColumn);
+						const newSelection = {
+							startLineNumber: selection.startLineNumber,
+							startColumn: startColumn,
+							endLineNumber: selection.endLineNumber,
+							endColumn: selection.endColumn
+						};
+
+						// Only delete content if there's something to delete
+						if (startColumn < selection.endColumn || selection.startLineNumber < selection.endLineNumber) {
+							// Create a range object using Monaco editor's model
+							const editor = this.input.inputEditor;
+							const editorModel = editor.getModel();
+							if (editorModel) {
+								const range = {
+									startLineNumber: newSelection.startLineNumber,
+									startColumn: newSelection.startColumn,
+									endLineNumber: newSelection.endLineNumber,
+									endColumn: newSelection.endColumn
+								};
+
+								editor.executeEdits('codingAgentLock', [{
+									range,
+									text: ''
+								}]);
+							}
+						}
+					}
+				}
+			}
+
+			// Prevent delete key if it would delete part of the prefix
+			if (e.key === 'Delete') {
+				const hasSelection = !selection.isEmpty();
+				const selectionIncludesPrefix = selection.startLineNumber === 1 && selection.startColumn <= prefixLength + 1;
+
+				if (hasSelection && selectionIncludesPrefix) {
+					// Prevent the default delete behavior
+					e.preventDefault();
+					e.stopPropagation();
+
+					// Delete only the part after the prefix
+					const startColumn = Math.max(prefixLength + 1, selection.startColumn);
+					const newSelection = {
+						startLineNumber: selection.startLineNumber,
+						startColumn: startColumn,
+						endLineNumber: selection.endLineNumber,
+						endColumn: selection.endColumn
+					};
+
+					// Only delete content if there's something to delete
+					if (startColumn < selection.endColumn || selection.startLineNumber < selection.endLineNumber) {
+						// Create a range object using Monaco editor's model
+						const editor = this.input.inputEditor;
+						const editorModel = editor.getModel();
+						if (editorModel) {
+							const range = {
+								startLineNumber: newSelection.startLineNumber,
+								startColumn: newSelection.startColumn,
+								endLineNumber: newSelection.endLineNumber,
+								endColumn: newSelection.endColumn
+							};
+
+							editor.executeEdits('codingAgentLock', [{
+								range,
+								text: ''
+							}]);
+						}
+					}
+				}
+			}
+		});
+	}
+
+	/**
+	 * Unregisters the keydown handler
+	 */
+	private unregisterKeydownHandler(): void {
+		if (this.keydownHandler) {
+			this.keydownHandler.dispose();
+			this.keydownHandler = undefined;
+		}
 	}
 
 	/**
@@ -1701,13 +1833,22 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		// Get the current input value
 		const currentInputValue = query ? query.query : this.getInput();
 
-		// Check if this is a message to joshbot (or any other coding agent)
-		if (!this.isLockedToCodingAgent && currentInputValue.trim().startsWith('@joshbot')) {
-			// This is a message to joshbot, try to find the agent and lock to it
-			const agents = this.chatAgentService.getAgents();
-			const joshbotAgent = agents.find(agent => agent.id === 'joshbot' || agent.name === 'joshbot');
-			if (joshbotAgent) {
-				this.lockToCodingAgent(joshbotAgent);
+		// Check if this is a message to any coding agent (starts with @)
+		if (!this.isLockedToCodingAgent && currentInputValue.trim().startsWith('@')) {
+			// Extract the agent name from the message
+			const match = currentInputValue.trim().match(/^@(\w+)/);
+			if (match && match[1]) {
+				const agentName = match[1];
+				// Try to find the agent
+				const agents = this.chatAgentService.getAgents();
+				const matchedAgent = agents.find(agent =>
+					agent.id === agentName ||
+					agent.name === agentName ||
+					agent.name.toLowerCase() === agentName.toLowerCase()
+				);
+				if (matchedAgent) {
+					this.lockToCodingAgent(matchedAgent);
+				}
 			}
 		}
 
@@ -2140,9 +2281,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			agent.isCodingAgent ||
 			agent.name.toLowerCase().includes('coding') ||
 			agent.name.toLowerCase().includes('code') ||
-			agent.id.includes('coding') ||
-			agent.id === 'joshbot' || // Specifically include joshbot
-			agent.name === 'joshbot'
+			agent.id.includes('coding')
 		);
 	}
 
