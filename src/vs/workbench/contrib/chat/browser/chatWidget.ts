@@ -104,6 +104,10 @@ const defaultChat = {
 export interface IChatViewState {
 	inputValue?: string;
 	inputState?: IChatInputState;
+	/** Stored selected chat mode id (if contributed capabilities allowed user selection). */
+	selectedModeId?: string;
+	/** Stored selected language model id (if user changed it). */
+	selectedModelId?: string;
 }
 
 export interface IChatWidgetStyles extends IChatInputStyles {
@@ -248,6 +252,7 @@ class ChatHistoryListRenderer implements IListRenderer<IChatHistoryListItem, ICh
 export class ChatWidget extends Disposable implements IChatWidget {
 	public static readonly CONTRIBS: { new(...args: [IChatWidget, ...any]): IChatWidgetContrib }[] = [];
 
+
 	private readonly _onDidSubmitAgent = this._register(new Emitter<{ agent: IChatAgentData; slashCommand?: IChatAgentCommand }>());
 	public readonly onDidSubmitAgent = this._onDidSubmitAgent.event;
 
@@ -357,6 +362,12 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	private _lockedToCodingAgentContextKey!: IContextKey<boolean>;
 	private _codingAgentPrefix: string | undefined;
 	private _lockedAgentId: string | undefined;
+	private _hasContributedCapabilitiesContextKey!: IContextKey<boolean>;
+
+	// Contributed session capabilities (modes/models) - accessed via public getter
+	private _contributedSessionCapabilities: { modes?: { id: string; label: string; description?: string }[]; models?: { id: string; label: string; description?: string; category?: string }[]; defaultModeId?: string; defaultModelId?: string } | undefined;
+	private _contributedSessionType: string | undefined;
+	private _contributedChatSessionId: string | undefined;
 
 	private lastWelcomeViewChatMode: ChatModeKind | undefined;
 
@@ -483,6 +494,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	) {
 		super();
 		this._lockedToCodingAgentContextKey = ChatContextKeys.lockedToCodingAgent.bindTo(this.contextKeyService);
+		this._hasContributedCapabilitiesContextKey = ChatContextKeys.hasContributedCapabilities.bindTo(this.contextKeyService);
 
 		this.viewContext = _viewContext ?? {};
 
@@ -731,6 +743,11 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	get attachmentModel(): ChatAttachmentModel {
 		return this.input.attachmentModel;
 	}
+
+	get contributedSessionCapabilities(): { modes?: { id: string; label: string; description?: string }[]; models?: { id: string; label: string; description?: string; category?: string }[]; defaultModeId?: string; defaultModelId?: string } | undefined {
+		return this._contributedSessionCapabilities;
+	}
+
 
 	async waitForReady(): Promise<void> {
 		if (this._isReady) {
@@ -2167,7 +2184,7 @@ export class ChatWidget extends Disposable implements IChatWidget {
 	}
 
 
-	setModel(model: IChatModel, viewState: IChatViewState): void {
+	setModel(model: IChatModel, viewState: IChatViewState, contributedCapabilities?: { modes?: { id: string; label: string; description?: string }[]; models?: { id: string; label: string; description?: string; category?: string }[]; defaultModeId?: string; defaultModelId?: string }): void {
 		if (!this.container) {
 			throw new Error('Call render() before setModel()');
 		}
@@ -2175,6 +2192,14 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		if (model.sessionId === this.viewModel?.sessionId) {
 			return;
 		}
+
+		this._contributedSessionCapabilities = contributedCapabilities;
+		const hasCapabilities = !!contributedCapabilities && (
+			(Array.isArray(contributedCapabilities.modes) && contributedCapabilities.modes.length > 0) ||
+			(Array.isArray(contributedCapabilities.models) && contributedCapabilities.models.length > 0)
+		);
+		this._hasContributedCapabilitiesContextKey.set(hasCapabilities);
+		// Don't reset session type here - it's set separately via setContributedSessionType()
 
 		if (this.historyList) {
 			this.historyList.setFocus([]);
@@ -2231,6 +2256,14 @@ export class ChatWidget extends Disposable implements IChatWidget {
 			this.onDidChangeItems();
 		}));
 		this.input.initForNewChatModel(viewState, model.getRequests().length === 0);
+
+		// Reapply persisted mode/model selections if present
+		if (viewState.selectedModeId) {
+			this.input.setChatMode(viewState.selectedModeId, false);
+		}
+		if (viewState.selectedModelId) {
+			this.input.switchModelByQualifiedName(viewState.selectedModelId);
+		}
 		this.contribs.forEach(c => {
 			if (c.setInputState && viewState.inputState?.[c.id]) {
 				c.setInputState(viewState.inputState?.[c.id]);
@@ -2333,6 +2366,22 @@ export class ChatWidget extends Disposable implements IChatWidget {
 
 	public get lockedAgentId(): string | undefined {
 		return this._lockedAgentId;
+	}
+
+	public setContributedSessionType(sessionType: string): void {
+		this._contributedSessionType = sessionType;
+	}
+
+	public get contributedSessionType(): string | undefined {
+		return this._contributedSessionType;
+	}
+
+	public setContributedChatSessionId(chatSessionId: string | undefined): void {
+		this._contributedChatSessionId = chatSessionId;
+	}
+
+	public get contributedChatSessionId(): string | undefined {
+		return this._contributedChatSessionId;
 	}
 
 	logInputHistory(): void {
@@ -2759,7 +2808,9 @@ export class ChatWidget extends Disposable implements IChatWidget {
 		const inputState = this.input.getViewState();
 		return {
 			inputValue: this.getInput(),
-			inputState: inputState
+			inputState: inputState,
+			selectedModeId: this.input.currentModeKind,
+			selectedModelId: this.input.currentLanguageModel
 		};
 	}
 

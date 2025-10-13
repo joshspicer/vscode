@@ -221,6 +221,9 @@ export interface IChatWidget {
 	readonly locationData?: IChatLocationData;
 
 	readonly supportsChangingModes: boolean;
+	readonly contributedSessionCapabilities: { modes?: { id: string; label: string; description?: string }[]; models?: { id: string; label: string; description?: string; category?: string }[]; defaultModeId?: string; defaultModelId?: string } | undefined;
+	readonly contributedSessionType: string | undefined;
+	readonly contributedChatSessionId: string | undefined;
 
 	getContrib<T extends IChatWidgetContrib>(id: string): T | undefined;
 	reveal(item: ChatTreeItem): void;

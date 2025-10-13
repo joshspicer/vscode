@@ -412,7 +412,10 @@ class OpenModelPickerAction extends Action2 {
 				group: 'navigation',
 				when:
 					ContextKeyExpr.and(
-						ChatContextKeys.lockedToCodingAgent.negate(),
+						ContextKeyExpr.or(
+							ChatContextKeys.lockedToCodingAgent.negate(),
+							ChatContextKeys.hasContributedCapabilities
+						),
 						ChatContextKeys.languageModelsAreUserSelectable,
 						ContextKeyExpr.or(
 							ContextKeyExpr.equals(ChatContextKeys.location.key, ChatAgentLocation.Chat),
@@ -459,7 +462,10 @@ export class OpenModePickerAction extends Action2 {
 						ChatContextKeys.enabled,
 						ChatContextKeys.location.isEqualTo(ChatAgentLocation.Chat),
 						ChatContextKeys.inQuickChat.negate(),
-						ChatContextKeys.lockedToCodingAgent.negate(),
+						ContextKeyExpr.or(
+							ChatContextKeys.lockedToCodingAgent.negate(),
+							ChatContextKeys.hasContributedCapabilities
+						),
 						ChatContextKeyExprs.chatSetupTriggerContext?.negate()),
 					group: 'navigation',
 				},

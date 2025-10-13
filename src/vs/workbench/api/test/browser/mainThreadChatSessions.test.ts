@@ -51,7 +51,9 @@ suite('ObservableChatSession', function () {
 			$invokeChatSessionRequestHandler: sinon.stub(),
 			$disposeChatSessionContent: sinon.stub(),
 			$provideChatSessionItems: sinon.stub(),
-			$provideNewChatSessionItem: sinon.stub().resolves({ id: 'new-session-id', label: 'New Session' } as IChatSessionItem)
+			$provideNewChatSessionItem: sinon.stub().resolves({ id: 'new-session-id', label: 'New Session' } as IChatSessionItem),
+			$notifyModeSelectionChanged: sinon.stub(),
+			$notifyModelSelectionChanged: sinon.stub()
 		};
 	});
 
@@ -345,7 +347,9 @@ suite('MainThreadChatSessions', function () {
 			$invokeChatSessionRequestHandler: sinon.stub(),
 			$disposeChatSessionContent: sinon.stub(),
 			$provideChatSessionItems: sinon.stub(),
-			$provideNewChatSessionItem: sinon.stub().resolves({ id: 'new-session-id', label: 'New Session' } as IChatSessionItem)
+			$provideNewChatSessionItem: sinon.stub().resolves({ id: 'new-session-id', label: 'New Session' } as IChatSessionItem),
+			$notifyModeSelectionChanged: sinon.stub(),
+			$notifyModelSelectionChanged: sinon.stub()
 		};
 
 		const extHostContext = new class implements IExtHostContext {
@@ -384,6 +388,38 @@ suite('MainThreadChatSessions', function () {
 	});
 
 	ensureNoDisposablesAreLeakedInTestSuite();
+
+	test('capabilities are stored and retrievable', async function () {
+		// Register provider with capabilities
+		const capabilities = {
+			modes: [
+				{ id: 'ask', label: 'Ask' },
+				{ id: 'agent', label: 'Agent' }
+			],
+			defaultModeId: 'agent',
+			models: [
+				{ id: 'vendor/model-a', label: 'Model A' },
+				{ id: 'vendor/model-b', label: 'Model B', description: 'Extra' }
+			],
+			defaultModelId: 'vendor/model-b',
+			supportsInterruptions: true
+		} as const;
+
+		mainThread.$registerChatSessionContentProvider(11, 'cap-type', capabilities as any);
+
+		const stored = (chatSessionsService as any).getChatSessionCapabilities('cap-type');
+		assert.ok(stored, 'Expected capabilities to be stored');
+		assert.strictEqual(stored?.defaultModeId, 'agent');
+		assert.strictEqual(stored?.defaultModelId, 'vendor/model-b');
+		assert.strictEqual(stored?.modes?.length, 2);
+		assert.strictEqual(stored?.models?.length, 2);
+		assert.strictEqual(stored?.supportsInterruptions, true);
+
+		// Unregister and ensure capabilities are cleared
+		mainThread.$unregisterChatSessionContentProvider(11);
+		const after = (chatSessionsService as any).getChatSessionCapabilities('cap-type');
+		assert.strictEqual(after, undefined, 'Expected capabilities to be cleared after unregister');
+	});
 
 	test('provideNewChatSessionItem creates a new chat session', async function () {
 		mainThread.$registerChatSessionItemProvider(1, 'test-type');

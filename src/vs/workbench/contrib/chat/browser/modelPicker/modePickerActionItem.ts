@@ -25,6 +25,7 @@ import { IToggleChatModeArgs, ToggleAgentModeActionId } from '../actions/chatExe
 
 export interface IModePickerDelegate {
 	readonly currentMode: IObservable<IChatMode>;
+	readonly contributedModes?: { id: string; label: string; description?: string }[];
 }
 
 export class ModePickerActionItem extends ActionWidgetDropdownActionViewItem {
@@ -73,6 +74,26 @@ export class ModePickerActionItem extends ActionWidgetDropdownActionViewItem {
 
 		const actionProvider: IActionWidgetDropdownActionProvider = {
 			getActions: () => {
+				// If we have contributed modes, use those exclusively
+				if (delegate.contributedModes && delegate.contributedModes.length > 0) {
+					const currentMode = delegate.currentMode.get();
+					return delegate.contributedModes.map(m => ({
+						...action,
+						id: `contributed.mode.${m.id}`,
+						label: m.label,
+						class: undefined,
+						enabled: true,
+						checked: currentMode.id === m.id,
+						tooltip: m.description ?? m.label,
+						run: async () => {
+							const result = await commandService.executeCommand(ToggleAgentModeActionId, { modeId: m.id } satisfies IToggleChatModeArgs);
+							this.renderLabel(this.element!);
+							return result;
+						},
+						category: { label: localize('contributed', "Contributed"), order: 0 }
+					}));
+				}
+
 				const modes = chatModeService.getModes();
 				const currentMode = delegate.currentMode.get();
 				const agentStateActions: IActionWidgetDropdownAction[] = modes.builtin.map(mode => makeAction(mode, currentMode));

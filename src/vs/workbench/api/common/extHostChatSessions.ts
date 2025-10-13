@@ -123,7 +123,16 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 		const disposables = new DisposableStore();
 
 		this._chatSessionContentProviders.set(handle, { provider, extension, capabilities, disposable: disposables });
-		this._proxy.$registerChatSessionContentProvider(handle, chatSessionType);
+		
+		// Serialize capabilities into DTO without vscode types for main thread
+		const dto = capabilities ? {
+			modes: capabilities.modes,
+			defaultModeId: capabilities.defaultModeId,
+			models: capabilities.models,
+			defaultModelId: capabilities.defaultModelId,
+			supportsInterruptions: capabilities.supportsInterruptions
+		} : undefined;
+		this._proxy.$registerChatSessionContentProvider(handle, chatSessionType, dto);
 
 		return new extHostTypes.Disposable(() => {
 			this._chatSessionContentProviders.delete(handle);
@@ -340,5 +349,21 @@ export class ExtHostChatSessions extends Disposable implements ExtHostChatSessio
 		}
 
 		return model;
+	}
+
+	$notifyModeSelectionChanged(handle: number, sessionId: string, modeId: string): void {
+		const entry = this._chatSessionContentProviders.get(handle);
+		if (entry?.provider.provideHandleModeSelectionChange) {
+			// Call the provider's callback method to notify it of the mode change
+			entry.provider.provideHandleModeSelectionChange(sessionId, modeId, CancellationToken.None);
+		}
+	}
+
+	$notifyModelSelectionChanged(handle: number, sessionId: string, modelId: string): void {
+		const entry = this._chatSessionContentProviders.get(handle);
+		if (entry?.provider.provideHandleModelSelectionChange) {
+			// Call the provider's callback method to notify it of the model change
+			entry.provider.provideHandleModelSelectionChange(sessionId, modelId, CancellationToken.None);
+		}
 	}
 }

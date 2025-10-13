@@ -88,6 +88,8 @@ export interface IChatSessionItemProvider {
 
 export interface IChatSessionContentProvider {
 	provideChatSessionContent(sessionId: string, token: CancellationToken): Promise<ChatSession>;
+	provideHandleModeSelectionChange?(sessionId: string, modeId: string, token: CancellationToken): void;
+	provideHandleModelSelectionChange?(sessionId: string, modelId: string, token: CancellationToken): void;
 }
 
 export interface IChatSessionsService {
@@ -110,7 +112,8 @@ export interface IChatSessionsService {
 	reportInProgress(chatSessionType: string, count: number): void;
 	getInProgress(): { displayName: string; count: number }[];
 
-	registerChatSessionContentProvider(chatSessionType: string, provider: IChatSessionContentProvider): IDisposable;
+	registerChatSessionContentProvider(chatSessionType: string, provider: IChatSessionContentProvider, capabilities?: IChatSessionCapabilitiesData): IDisposable;
+	getChatSessionCapabilities(chatSessionType: string): IChatSessionCapabilitiesData | undefined;
 	canResolveContentProvider(chatSessionType: string): Promise<boolean>;
 	provideChatSessionContent(chatSessionType: string, id: string, token: CancellationToken): Promise<ChatSession>;
 
@@ -121,6 +124,19 @@ export interface IChatSessionsService {
 
 	// Notify providers about session items changes
 	notifySessionItemsChanged(chatSessionType: string): void;
+
+	// Notify providers about mode/model selection changes for a specific session
+	notifyModeSelectionChanged(chatSessionType: string, sessionId: string, modeId: string): void;
+	notifyModelSelectionChanged(chatSessionType: string, sessionId: string, modelId: string): void;
 }
 
 export const IChatSessionsService = createDecorator<IChatSessionsService>('chatSessionsService');
+
+// Internal mirror of proposed API capability shape to avoid layering on vscode namespace
+export interface IChatSessionCapabilitiesData {
+	modes?: { id: string; label: string; description?: string }[];
+	defaultModeId?: string;
+	models?: { id: string; label: string; description?: string; category?: string }[];
+	defaultModelId?: string;
+	supportsInterruptions?: boolean;
+}

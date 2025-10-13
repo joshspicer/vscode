@@ -21,7 +21,7 @@ import { ExtensionsRegistry } from '../../../services/extensions/common/extensio
 import { ChatEditorInput } from '../browser/chatEditorInput.js';
 import { IChatAgentData, IChatAgentRequest, IChatAgentService } from '../common/chatAgents.js';
 import { ChatContextKeys } from '../common/chatContextKeys.js';
-import { ChatSession, ChatSessionStatus, IChatSessionContentProvider, IChatSessionItem, IChatSessionItemProvider, IChatSessionsExtensionPoint, IChatSessionsService } from '../common/chatSessionsService.js';
+import { ChatSession, ChatSessionStatus, IChatSessionContentProvider, IChatSessionItem, IChatSessionItemProvider, IChatSessionsExtensionPoint, IChatSessionsService, IChatSessionCapabilitiesData } from '../common/chatSessionsService.js';
 import { ChatSessionUri } from '../common/chatUri.js';
 import { ChatAgentLocation, ChatModeKind, VIEWLET_ID } from '../common/constants.js';
 import { CHAT_CATEGORY } from './actions/chatActions.js';
@@ -132,7 +132,8 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 
 	private readonly _onDidChangeItemsProviders = this._register(new Emitter<IChatSessionItemProvider>());
 	readonly onDidChangeItemsProviders: Event<IChatSessionItemProvider> = this._onDidChangeItemsProviders.event;
-	private readonly _contentProviders: Map<string, IChatSessionContentProvider> = new Map();
+	private readonly _contentProviders: Map<string, { provider: IChatSessionContentProvider; capabilities?: IChatSessionCapabilitiesData }> = new Map();
+	private readonly _capabilities: Map<string, IChatSessionCapabilitiesData> = new Map();
 	private readonly _contributions: Map<string, IChatSessionsExtensionPoint> = new Map();
 	private readonly _disposableStores: Map<string, DisposableStore> = new Map();
 	private readonly _contextKeys = new Set<string>();
@@ -492,11 +493,15 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 		};
 	}
 
-	registerChatSessionContentProvider(chatSessionType: string, provider: IChatSessionContentProvider): IDisposable {
-		this._contentProviders.set(chatSessionType, provider);
+	registerChatSessionContentProvider(chatSessionType: string, provider: IChatSessionContentProvider, capabilities?: IChatSessionCapabilitiesData): IDisposable {
+		this._contentProviders.set(chatSessionType, { provider, capabilities });
+		if (capabilities) {
+			this._capabilities.set(chatSessionType, capabilities);
+		}
 		return {
 			dispose: () => {
 				this._contentProviders.delete(chatSessionType);
+				this._capabilities.delete(chatSessionType);
 
 				// Remove all sessions that were created by this provider
 				for (const [key, session] of this._sessions) {
@@ -543,8 +548,8 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 			throw Error(`Can not find provider for ${chatSessionType}`);
 		}
 
-		const provider = this._contentProviders.get(chatSessionType);
-		if (!provider) {
+		const entry = this._contentProviders.get(chatSessionType);
+		if (!entry) {
 			throw Error(`Can not find provider for ${chatSessionType}`);
 		}
 
@@ -554,7 +559,7 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 			return existingSessionData.session;
 		}
 
-		const session = await provider.provideChatSessionContent(id, token);
+		const session = await entry.provider.provideChatSessionContent(id, token);
 		const sessionData = new ContributedChatSessionData(session, chatSessionType, id, this._onWillDisposeSession.bind(this));
 
 		this._sessions.set(sessionKey, sessionData);
@@ -565,6 +570,10 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 	private _onWillDisposeSession(session: ChatSession, chatSessionType: string, id: string): void {
 		const sessionKey = `${chatSessionType}_${id}`;
 		this._sessions.delete(sessionKey);
+	}
+
+	getChatSessionCapabilities(chatSessionType: string): IChatSessionCapabilitiesData | undefined {
+		return this._capabilities.get(chatSessionType);
 	}
 
 	// Implementation of editable session methods
@@ -588,6 +597,20 @@ export class ChatSessionsService extends Disposable implements IChatSessionsServ
 
 	public notifySessionItemsChanged(chatSessionType: string): void {
 		this._onDidChangeSessionItems.fire(chatSessionType);
+	}
+
+	public notifyModeSelectionChanged(chatSessionType: string, sessionId: string, modeId: string): void {
+		const contentProviderEntry = this._contentProviders.get(chatSessionType);
+		if (contentProviderEntry?.provider.provideHandleModeSelectionChange) {
+			contentProviderEntry.provider.provideHandleModeSelectionChange(sessionId, modeId, CancellationToken.None);
+		}
+	}
+
+	public notifyModelSelectionChanged(chatSessionType: string, sessionId: string, modelId: string): void {
+		const contentProviderEntry = this._contentProviders.get(chatSessionType);
+		if (contentProviderEntry?.provider.provideHandleModelSelectionChange) {
+			contentProviderEntry.provider.provideHandleModelSelectionChange(sessionId, modelId, CancellationToken.None);
+		}
 	}
 }
 

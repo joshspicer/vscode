@@ -307,6 +307,7 @@ export class MainThreadChatSessions extends Disposable implements MainThreadChat
 		readonly onDidChangeItems: Emitter<void>;
 	}>());
 	private readonly _contentProvidersRegistrations = this._register(new DisposableMap<number>());
+	private readonly _contentProviderHandles = new Map<string, number>(); // chatSessionType → handle
 
 	private readonly _activeSessions = new Map<string, ObservableChatSession>();
 	private readonly _sessionDisposables = new Map<string, IDisposable>();
@@ -464,15 +465,25 @@ export class MainThreadChatSessions extends Disposable implements MainThreadChat
 		this._itemProvidersRegistrations.deleteAndDispose(handle);
 	}
 
-	$registerChatSessionContentProvider(handle: number, chatSessionType: string): void {
+	$registerChatSessionContentProvider(handle: number, chatSessionType: string, capabilities?: { modes?: { id: string; label: string; description?: string }[]; defaultModeId?: string; models?: { id: string; label: string; description?: string; category?: string }[]; defaultModelId?: string; supportsInterruptions?: boolean }): void {
 		const provider: IChatSessionContentProvider = {
-			provideChatSessionContent: (id, token) => this._provideChatSessionContent(handle, id, token)
+			provideChatSessionContent: (id, token) => this._provideChatSessionContent(handle, id, token),
+			provideHandleModeSelectionChange: (sessionId, modeId, token) => this._proxy.$notifyModeSelectionChanged(handle, sessionId, modeId),
+			provideHandleModelSelectionChange: (sessionId, modelId, token) => this._proxy.$notifyModelSelectionChanged(handle, sessionId, modelId)
 		};
 
-		this._contentProvidersRegistrations.set(handle, this._chatSessionsService.registerChatSessionContentProvider(chatSessionType, provider));
+		this._contentProviderHandles.set(chatSessionType, handle);
+		this._contentProvidersRegistrations.set(handle, this._chatSessionsService.registerChatSessionContentProvider(chatSessionType, provider, capabilities));
 	}
 
 	$unregisterChatSessionContentProvider(handle: number): void {
+		// Remove from handle mapping
+		for (const [type, h] of this._contentProviderHandles) {
+			if (h === handle) {
+				this._contentProviderHandles.delete(type);
+				break;
+			}
+		}
 		this._contentProvidersRegistrations.deleteAndDispose(handle);
 		// dispose all sessions from this provider and clean up its disposables
 		for (const [key, session] of this._activeSessions) {

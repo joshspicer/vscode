@@ -79,6 +79,7 @@ import { ChatEntitlement, IChatEntitlementService } from '../../../services/chat
 import { IChatRequestModeInfo } from '../common/chatModel.js';
 import { ChatMode, IChatMode, IChatModeService } from '../common/chatModes.js';
 import { IChatFollowup } from '../common/chatService.js';
+import { IChatSessionsService } from '../common/chatSessionsService.js';
 import { ChatRequestVariableSet, IChatRequestVariableEntry, isElementVariableEntry, isImageVariableEntry, isNotebookOutputVariableEntry, isPasteVariableEntry, isPromptFileVariableEntry, isPromptTextVariableEntry, isSCMHistoryItemChangeRangeVariableEntry, isSCMHistoryItemChangeVariableEntry, isSCMHistoryItemVariableEntry } from '../common/chatVariableEntries.js';
 import { IChatResponseViewModel } from '../common/chatViewModel.js';
 import { ChatInputHistoryMaxEntries, IChatHistoryEntry, IChatInputState, IChatWidgetHistoryService } from '../common/chatWidgetHistoryService.js';
@@ -346,6 +347,7 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 
 	readonly inputUri: URI;
 
+	private _widget: IChatWidget | undefined;
 	private _workingSetLinesAddedSpan?: HTMLElement;
 	private _workingSetLinesRemovedSpan?: HTMLElement;
 
@@ -410,6 +412,7 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 		@IChatModeService private readonly chatModeService: IChatModeService,
 		@IPromptsService private readonly promptsService: IPromptsService,
 		@ILanguageModelToolsService private readonly toolService: ILanguageModelToolsService,
+		@IChatSessionsService private readonly chatSessionsService: IChatSessionsService,
 	) {
 		super();
 		this._onDidLoadInputState = this._register(new Emitter<any>());
@@ -651,6 +654,18 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 		this.storageService.store(this.getSelectedModelIsDefaultStorageKey(), !!model.metadata.isDefault, StorageScope.APPLICATION, StorageTarget.USER);
 
 		this._onDidChangeCurrentLanguageModel.fire(model);
+
+		// Notify extension if this is a contributed session with model capabilities
+		if (this._widget?.contributedSessionType && this._widget.contributedChatSessionId) {
+			const contributedModels = this._widget.contributedSessionCapabilities?.models;
+			if (contributedModels && contributedModels.some(m => m.id === model.identifier)) {
+				this.chatSessionsService.notifyModelSelectionChanged(
+					this._widget.contributedSessionType,
+					this._widget.contributedChatSessionId,
+					model.identifier
+				);
+			}
+		}
 	}
 
 	private checkModelSupported(): void {
@@ -685,6 +700,18 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 		if (storeSelection) {
 			this.storageService.store(GlobalLastChatModeKey, mode.kind, StorageScope.APPLICATION, StorageTarget.USER);
 		}
+
+		// Notify extension if this is a contributed session with mode capabilities
+		if (this._widget?.contributedSessionType && this._widget.contributedChatSessionId) {
+			const contributedModes = this._widget.contributedSessionCapabilities?.modes;
+			if (contributedModes && contributedModes.some(m => m.id === mode.id)) {
+				this.chatSessionsService.notifyModeSelectionChanged(
+					this._widget.contributedSessionType,
+					this._widget.contributedChatSessionId,
+					mode.id
+				);
+			}
+		}
 	}
 
 	private modelSupportedForDefaultAgent(model: ILanguageModelChatMetadataAndIdentifier): boolean {
@@ -697,6 +724,28 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 	}
 
 	private getModels(): ILanguageModelChatMetadataAndIdentifier[] {
+		// If we have contributed session capabilities with models, use those instead of global LM service
+		const contributedModels = this._widget?.contributedSessionCapabilities?.models;
+		if (contributedModels && contributedModels.length > 0) {
+			return contributedModels.map((m: { id: string; label: string; description?: string; category?: string }) => ({
+				identifier: m.id,
+				metadata: {
+					id: m.id,
+					name: m.label,
+					vendor: m.id.split('/')[0] || 'contributed',
+					family: m.id.split('/')[1] || m.id,
+					version: '1.0',
+					isUserSelectable: true,
+					isDefault: false,
+					detail: m.description,
+					modelPickerCategory: m.category ? { label: m.category, order: 0 } : undefined,
+					extension: { identifier: { value: 'contributed' }, displayName: 'Contributed' } as any,
+					maxInputTokens: 0,
+					maxOutputTokens: 0
+				}
+			}));
+		}
+
 		const models = this.languageModelsService.getLanguageModelIds()
 			.map(modelId => ({ identifier: modelId, metadata: this.languageModelsService.lookupLanguageModel(modelId)! }))
 			.filter(entry => entry.metadata?.isUserSelectable && this.modelSupportedForDefaultAgent(entry));
@@ -1077,6 +1126,7 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 	}
 
 	render(container: HTMLElement, initialValue: string, widget: IChatWidget) {
+		this._widget = widget;
 		let elements;
 		if (this.options.renderStyle === 'compact') {
 			elements = dom.h('.interactive-input-part', [
@@ -1261,7 +1311,8 @@ export class ChatInputPart extends Disposable implements IHistoryNavigationWidge
 					return this.modelWidget = this.instantiationService.createInstance(ModelPickerActionItem, action, this._currentLanguageModel, itemDelegate);
 				} else if (action.id === OpenModePickerAction.ID && action instanceof MenuItemAction) {
 					const delegate: IModePickerDelegate = {
-						currentMode: this._currentModeObservable
+						currentMode: this._currentModeObservable,
+						contributedModes: this._widget?.contributedSessionCapabilities?.modes
 					};
 					return this.modeWidget = this.instantiationService.createInstance(ModePickerActionItem, action, delegate);
 				}

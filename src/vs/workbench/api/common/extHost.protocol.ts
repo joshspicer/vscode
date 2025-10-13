@@ -3164,12 +3164,20 @@ export interface ChatSessionDto {
 }
 
 
+export interface ChatSessionCapabilitiesDto { // serialized shape of chat capabilities
+	modes?: { id: string; label: string; description?: string }[];
+	defaultModeId?: string;
+	models?: { id: string; label: string; description?: string; category?: string }[];
+	defaultModelId?: string;
+	supportsInterruptions?: boolean;
+}
+
 export interface MainThreadChatSessionsShape extends IDisposable {
 	$registerChatSessionItemProvider(handle: number, chatSessionType: string): void;
 	$unregisterChatSessionItemProvider(handle: number): void;
 	$onDidChangeChatSessionItems(handle: number): void;
 	$onDidCommitChatSessionItem(handle: number, original: string, modified: string): void;
-	$registerChatSessionContentProvider(handle: number, chatSessionType: string): void;
+	$registerChatSessionContentProvider(handle: number, chatSessionType: string, capabilities?: ChatSessionCapabilitiesDto): void;
 	$unregisterChatSessionContentProvider(handle: number): void;
 
 	$handleProgressChunk(handle: number, sessionId: string, requestId: string, chunks: (IChatProgressDto | [IChatProgressDto, number])[]): Promise<void>;
@@ -3187,6 +3195,8 @@ export interface ExtHostChatSessionsShape {
 	$interruptChatSessionActiveResponse(providerHandle: number, sessionId: string, requestId: string): Promise<void>;
 	$disposeChatSessionContent(providerHandle: number, sessionId: string): Promise<void>;
 	$invokeChatSessionRequestHandler(providerHandle: number, id: string, request: IChatAgentRequest, history: any[], token: CancellationToken): Promise<IChatAgentResult>;
+	$notifyModeSelectionChanged(providerHandle: number, sessionId: string, modeId: string): void;
+	$notifyModelSelectionChanged(providerHandle: number, sessionId: string, modelId: string): void;
 }
 
 // --- proxy identifiers

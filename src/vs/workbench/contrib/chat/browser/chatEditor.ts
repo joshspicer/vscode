@@ -138,39 +138,43 @@ export class ChatEditor extends EditorPane {
 			throw new Error('ChatEditor lifecycle issue: no editor widget');
 		}
 
-		let isContributedChatSession = false;
-		const chatSessionType = getChatSessionType(input);
-		if (chatSessionType !== 'local') {
-			await raceCancellationError(this.chatSessionsService.canResolveContentProvider(chatSessionType), token);
-			const contributions = this.chatSessionsService.getAllChatSessionContributions();
-			const contribution = contributions.find(c => c.type === chatSessionType);
-			if (contribution) {
-				this.widget.lockToCodingAgent(contribution.name, contribution.displayName, contribution.type);
-				isContributedChatSession = true;
-			} else {
-				this.widget.unlockFromCodingAgent();
-			}
+	let isContributedChatSession = false;
+	let capabilities: { modes?: { id: string; label: string; description?: string }[]; models?: { id: string; label: string; description?: string; category?: string }[]; defaultModeId?: string; defaultModelId?: string } | undefined;
+	const chatSessionType = getChatSessionType(input);
+	if (chatSessionType !== 'local') {
+		await raceCancellationError(this.chatSessionsService.canResolveContentProvider(chatSessionType), token);
+		const contributions = this.chatSessionsService.getAllChatSessionContributions();
+		const contribution = contributions.find(c => c.type === chatSessionType);
+		if (contribution) {
+			// Always lock to the agent for contributed sessions (ensures message routing)
+			// Capabilities will be passed to enable pickers even when locked
+			this.widget.lockToCodingAgent(contribution.name, contribution.displayName, contribution.type);
+			this.widget.setContributedSessionType(chatSessionType);
+			this.widget.setContributedChatSessionId(input.sessionId);
+			capabilities = this.chatSessionsService.getChatSessionCapabilities?.(chatSessionType as any);
+			isContributedChatSession = true;
 		} else {
 			this.widget.unlockFromCodingAgent();
 		}
-
-		const editorModel = await raceCancellationError(input.resolve(), token);
+	} else {
+		this.widget.unlockFromCodingAgent();
+	}		const editorModel = await raceCancellationError(input.resolve(), token);
 
 		if (!editorModel) {
 			throw new Error(`Failed to get model for chat editor. id: ${input.sessionId}`);
 		}
 		const viewState = options?.viewState ?? input.options.viewState;
-		this.updateModel(editorModel.model, viewState);
+		this.updateModel(editorModel.model, viewState, isContributedChatSession ? capabilities : undefined);
 
 		if (isContributedChatSession && options?.title?.preferred) {
 			editorModel.model.setCustomTitle(options.title.preferred);
 		}
 	}
 
-	private updateModel(model: IChatModel, viewState?: IChatViewState): void {
+	private updateModel(model: IChatModel, viewState?: IChatViewState, contributedCapabilities?: { modes?: { id: string; label: string; description?: string }[]; models?: { id: string; label: string; description?: string; category?: string }[]; defaultModeId?: string; defaultModelId?: string }): void {
 		this._memento = new Memento('interactive-session-editor-' + CHAT_PROVIDER_ID, this.storageService);
 		this._viewState = viewState ?? this._memento.getMemento(StorageScope.WORKSPACE, StorageTarget.MACHINE);
-		this.widget.setModel(model, { ...this._viewState });
+		this.widget.setModel(model, { ...this._viewState }, contributedCapabilities);
 	}
 
 	protected override saveState(): void {

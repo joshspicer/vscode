@@ -166,6 +166,30 @@ declare module 'vscode' {
 		 * @param token A cancellation token that can be used to cancel the operation.
 		 */
 		provideChatSessionContent(sessionId: string, token: CancellationToken): Thenable<ChatSession> | ChatSession;
+
+		/**
+		 * Optional callback invoked when the user changes the selected mode for a specific session.
+		 * Only called for sessions where {@link ChatSessionCapabilities.modes} was provided.
+		 *
+		 * Extensions can use this to adjust behavior based on the user's mode selection.
+		 *
+		 * @param sessionId The ID of the session for which the mode changed
+		 * @param modeId The ID of the newly selected mode
+		 * @param token A cancellation token
+		 */
+		provideHandleModeSelectionChange?(sessionId: string, modeId: string, token: CancellationToken): void;
+
+		/**
+		 * Optional callback invoked when the user changes the selected model for a specific session.
+		 * Only called for sessions where {@link ChatSessionCapabilities.models} was provided.
+		 *
+		 * Extensions can use this to adjust behavior based on the user's model selection.
+		 *
+		 * @param sessionId The ID of the session for which the model changed
+		 * @param modelId The ID of the newly selected model
+		 * @param token A cancellation token
+		 */
+		provideHandleModelSelectionChange?(sessionId: string, modelId: string, token: CancellationToken): void;
 	}
 
 	export namespace chat {
@@ -210,6 +234,32 @@ declare module 'vscode' {
 		 * Whether sessions can be interrupted and resumed without side-effects.
 		 */
 		supportsInterruptions?: boolean;
+
+		/**
+		 * Contributed chat modes available to this session type. When this array is defined and non-empty,
+		 * the chat mode picker UI will be shown. Omit (or provide an empty array) to hide the mode picker.
+		 * The first element is used if no {@link defaultModeId} is provided or doesn't match any entry.
+		 */
+		modes?: { id: string; label: string; description?: string }[];
+
+		/**
+		 * Identifier of the mode that should be preselected initially. Must correspond to an `id` in {@link modes}.
+		 * Ignored if it does not match any contributed mode.
+		 */
+		defaultModeId?: string;
+
+		/**
+		 * Contributed models available to this session type. When this array is defined and non-empty,
+		 * the chat model picker UI will be shown. Omit (or provide an empty array) to hide the model picker.
+		 * The first element is used if no {@link defaultModelId} is provided or doesn't match any entry.
+		 */
+		models?: { id: string; label: string; description?: string; category?: string }[];
+
+		/**
+		 * Identifier of the model that should be preselected initially. Must correspond to an `id` in {@link models}.
+		 * Ignored if it does not match any contributed model.
+		 */
+		defaultModelId?: string;
 	}
 
 	export interface ChatSessionShowOptions {
