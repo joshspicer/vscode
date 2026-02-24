@@ -337,6 +337,8 @@ export class AICustomizationListWidget extends Disposable {
 	private searchQuery: string = '';
 	private readonly collapsedGroups = new Set<PromptsStorage>();
 	private readonly dropdownActionDisposables = this._register(new DisposableStore());
+	private lastLayoutHeight = 0;
+	private lastLayoutWidth = 0;
 
 	private readonly delayedFilter = new Delayer<void>(200);
 
@@ -986,6 +988,9 @@ export class AICustomizationListWidget extends Disposable {
 			this.collapsedGroups.add(entry.storage);
 		}
 		this.filterItems();
+		if (this.lastLayoutHeight > 0) {
+			this.layout(this.lastLayoutHeight, this.lastLayoutWidth);
+		}
 	}
 
 	private updateEmptyState(): void {
@@ -1097,6 +1102,8 @@ export class AICustomizationListWidget extends Disposable {
 	 * Layouts the widget.
 	 */
 	layout(height: number, width: number): void {
+		this.lastLayoutHeight = height;
+		this.lastLayoutWidth = width;
 		const sectionFooterHeight = this.sectionHeader.offsetHeight || 100;
 		const searchBarHeight = this.searchAndButtonContainer.offsetHeight || 40;
 		const margins = 12; // search margin (6+6), not included in offsetHeight
