@@ -9,7 +9,7 @@ import { $, append } from '../../../../base/browser/dom.js';
 import { ISessionsPrerequisite, ISessionsPrerequisiteService } from './sessionsPrerequisiteService.js';
 import { Button } from '../../../../base/browser/ui/button/button.js';
 import { defaultButtonStyles } from '../../../../platform/theme/browser/defaultStyles.js';
-import { ThemeIcon } from '../../../../base/common/themeable.js';
+import { ThemeIcon } from '../../../../base/common/themables.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { localize } from '../../../../nls.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
