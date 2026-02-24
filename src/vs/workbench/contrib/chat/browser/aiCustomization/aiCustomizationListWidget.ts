@@ -482,6 +482,27 @@ export class AICustomizationListWidget extends Disposable {
 		// Handle context menu
 		this._register(this.list.onContextMenu(e => this.onContextMenu(e)));
 
+		// Handle keyboard expand/collapse for group headers
+		this._register(this.list.onKeyDown(e => {
+			if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+				return;
+			}
+			const focus = this.list.getFocus();
+			if (focus.length === 0) {
+				return;
+			}
+			const entry = this.displayEntries[focus[0]];
+			if (!entry || entry.type !== 'group-header') {
+				return;
+			}
+			const wantCollapse = e.key === 'ArrowLeft';
+			if (entry.collapsed !== wantCollapse) {
+				e.preventDefault();
+				e.stopPropagation();
+				this.toggleGroup(entry);
+			}
+		}));
+
 		// Subscribe to prompt service changes
 		this._register(this.promptsService.onDidChangeCustomAgents(() => this.refresh()));
 		this._register(this.promptsService.onDidChangeSlashCommands(() => this.refresh()));
