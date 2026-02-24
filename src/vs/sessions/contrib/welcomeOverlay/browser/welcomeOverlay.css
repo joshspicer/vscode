@@ -1,0 +1,131 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.sessions-welcome-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--vscode-editor-background);
+	opacity: 1;
+	transition: opacity 0.3s ease-out;
+}
+
+.sessions-welcome-overlay.hidden {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.sessions-welcome-overlay-content {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	max-width: 480px;
+	width: 100%;
+	padding: 40px;
+	gap: 32px;
+}
+
+.sessions-welcome-overlay-header {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	text-align: center;
+}
+
+.sessions-welcome-overlay-header h2 {
+	font-size: 24px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+	margin: 0;
+}
+
+.sessions-welcome-overlay-header p {
+	font-size: 14px;
+	color: var(--vscode-descriptionForeground);
+	margin: 0;
+	line-height: 1.5;
+}
+
+.sessions-welcome-overlay-steps {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	gap: 12px;
+}
+
+.sessions-welcome-step {
+	display: flex;
+	align-items: center;
+	padding: 16px;
+	border-radius: 8px;
+	background: var(--vscode-sideBar-background);
+	border: 1px solid var(--vscode-widget-border, transparent);
+	gap: 16px;
+	transition: border-color 0.2s;
+}
+
+.sessions-welcome-step.satisfied {
+	border-color: var(--vscode-testing-iconPassed, #388a34);
+}
+
+.sessions-welcome-step-icon {
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.sessions-welcome-step-icon .codicon {
+	font-size: 18px;
+}
+
+.sessions-welcome-step.satisfied .sessions-welcome-step-icon .codicon {
+	color: var(--vscode-testing-iconPassed, #388a34);
+}
+
+.sessions-welcome-step:not(.satisfied) .sessions-welcome-step-icon .codicon {
+	color: var(--vscode-descriptionForeground);
+}
+
+.sessions-welcome-step-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.sessions-welcome-step-label {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.sessions-welcome-step-description {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.sessions-welcome-step-action {
+	flex-shrink: 0;
+}
+
+.sessions-welcome-step-action .monaco-button {
+	padding: 6px 14px;
+	border-radius: 4px;
+	font-size: 13px;
+}
+
+.sessions-welcome-step.satisfied .sessions-welcome-step-action {
+	display: none;
+}
