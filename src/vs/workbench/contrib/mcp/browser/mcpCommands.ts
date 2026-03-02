@@ -44,6 +44,7 @@ import { IWorkbenchContribution } from '../../../common/contributions.js';
 import { IAuthenticationService } from '../../../services/authentication/common/authentication.js';
 import { IAccountQuery, IAuthenticationQueryService } from '../../../services/authentication/common/authenticationQuery.js';
 import { MCP_CONFIGURATION_KEY, WORKSPACE_STANDALONE_CONFIGURATIONS } from '../../../services/configuration/common/configuration.js';
+import { IEditorGroupsService } from '../../../services/editor/common/editorGroupsService.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
 import { IRemoteUserDataProfilesService } from '../../../services/userDataProfile/common/remoteUserDataProfiles.js';
 import { IUserDataProfileService } from '../../../services/userDataProfile/common/userDataProfile.js';
@@ -896,6 +897,9 @@ export class McpBrowseCommand extends Action2 {
 	}
 
 	async run(accessor: ServicesAccessor) {
+		// Close any active modal editor (e.g. Chat Customizations) before opening the marketplace
+		// so the Extensions view isn't obscured behind it (fix for #297399)
+		accessor.get(IEditorGroupsService).activeModalEditorPart?.close();
 		accessor.get(IExtensionsWorkbenchService).openSearch('@mcp ');
 	}
 }
