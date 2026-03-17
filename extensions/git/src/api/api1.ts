@@ -212,6 +212,10 @@ export class ApiRepository implements Repository {
 		return this.#repository.diffBetweenWithStats(ref1, ref2, path);
 	}
 
+	diffBetweenWithStats2(ref: string, path?: string): Promise<DiffChange[]> {
+		return this.#repository.diffBetweenWithStats2(ref, path);
+	}
+
 	hashObject(data: string): Promise<string> {
 		return this.#repository.hashObject(data);
 	}
@@ -320,6 +324,10 @@ export class ApiRepository implements Repository {
 		return this.#repository.mergeAbort();
 	}
 
+	rebase(branch: string): Promise<void> {
+		return this.#repository.rebase(branch);
+	}
+
 	createStash(options?: { message?: string; includeUntracked?: boolean; staged?: boolean }): Promise<void> {
 		return this.#repository.createStash(options?.message, options?.includeUntracked, options?.staged);
 	}
@@ -346,6 +354,14 @@ export class ApiRepository implements Repository {
 
 	migrateChanges(sourceRepositoryPath: string, options?: { confirmation?: boolean; deleteFromSource?: boolean; untracked?: boolean }): Promise<void> {
 		return this.#repository.migrateChanges(sourceRepositoryPath, options);
+	}
+
+	generateRandomBranchName(): Promise<string | undefined> {
+		return this.#repository.generateRandomBranchName();
+	}
+
+	isBranchProtected(branch?: Branch): boolean {
+		return this.#repository.isBranchProtected(branch);
 	}
 }
 

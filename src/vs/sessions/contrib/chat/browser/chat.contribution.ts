@@ -28,7 +28,9 @@ import { AgenticPromptsService } from './promptsService.js';
 import { IPromptsService } from '../../../../workbench/contrib/chat/common/promptSyntax/service/promptsService.js';
 import { ISessionsConfigurationService, SessionsConfigurationService } from './sessionsConfigurationService.js';
 import { IAICustomizationWorkspaceService } from '../../../../workbench/contrib/chat/common/aiCustomizationWorkspaceService.js';
+import { ICustomizationHarnessService } from '../../../../workbench/contrib/chat/common/customizationHarnessService.js';
 import { SessionsAICustomizationWorkspaceService } from './aiCustomizationWorkspaceService.js';
+import { SessionsCustomizationHarnessService } from './customizationHarnessService.js';
 import { ChatViewContainerId, ChatViewId } from '../../../../workbench/contrib/chat/browser/chat.js';
 import { CHAT_CATEGORY } from '../../../../workbench/contrib/chat/browser/actions/chatActions.js';
 import { NewChatViewPane, SessionsViewId } from './newChatViewPane.js';
@@ -47,11 +49,12 @@ export class OpenSessionWorktreeInVSCodeAction extends Action2 {
 			id: OpenSessionWorktreeInVSCodeAction.ID,
 			title: localize2('openInVSCode', 'Open in VS Code'),
 			icon: Codicon.vscodeInsiders,
+			precondition: IsActiveSessionBackgroundProviderContext,
 			menu: [{
-				id: Menus.TitleBarRight,
+				id: Menus.TitleBarSessionMenu,
 				group: 'navigation',
 				order: 10,
-				when: ContextKeyExpr.and(IsAuxiliaryWindowContext.toNegated(), SessionsWelcomeVisibleContext.toNegated(), IsActiveSessionBackgroundProviderContext)
+				when: ContextKeyExpr.and(IsAuxiliaryWindowContext.toNegated(), SessionsWelcomeVisibleContext.toNegated(), IsActiveSessionBackgroundProviderContext),
 			}]
 		});
 	}
@@ -91,29 +94,6 @@ export class OpenSessionWorktreeInVSCodeAction extends Action2 {
 	}
 }
 registerAction2(OpenSessionWorktreeInVSCodeAction);
-
-// Disabled placeholder shown in the titlebar when the active session does not support opening in VS Code
-class OpenSessionWorktreeInVSCodeNotAvailableAction extends Action2 {
-	constructor() {
-		super({
-			id: 'chat.openSessionWorktreeInVSCode.notAvailable',
-			title: localize2('openInVSCode', 'Open in VS Code'),
-			tooltip: localize('openInVSCodeNotAvailableTooltip', "Open in VS Code is not available for this session type"),
-			icon: Codicon.vscodeInsiders,
-			precondition: ContextKeyExpr.false(),
-			menu: [{
-				id: Menus.TitleBarRight,
-				group: 'navigation',
-				order: 10,
-				when: ContextKeyExpr.and(IsAuxiliaryWindowContext.toNegated(), SessionsWelcomeVisibleContext.toNegated(), IsActiveSessionBackgroundProviderContext.toNegated())
-			}]
-		});
-	}
-
-	override run(): void { }
-}
-
-registerAction2(OpenSessionWorktreeInVSCodeNotAvailableAction);
 
 class NewChatInSessionsWindowAction extends Action2 {
 
@@ -217,3 +197,4 @@ registerWorkbenchContribution2(RunScriptContribution.ID, RunScriptContribution, 
 registerSingleton(IPromptsService, AgenticPromptsService, InstantiationType.Delayed);
 registerSingleton(ISessionsConfigurationService, SessionsConfigurationService, InstantiationType.Delayed);
 registerSingleton(IAICustomizationWorkspaceService, SessionsAICustomizationWorkspaceService, InstantiationType.Delayed);
+registerSingleton(ICustomizationHarnessService, SessionsCustomizationHarnessService, InstantiationType.Delayed);
