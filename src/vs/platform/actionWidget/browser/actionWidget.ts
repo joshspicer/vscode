@@ -21,12 +21,16 @@ import { KeybindingWeight } from '../../keybinding/common/keybindingsRegistry.js
 import { inputActiveOptionBackground, registerColor } from '../../theme/common/colorRegistry.js';
 import { StandardMouseEvent } from '../../../base/browser/mouseEvent.js';
 import { IListAccessibilityProvider } from '../../../base/browser/ui/list/listWidget.js';
+import { ILayoutService } from '../../layout/browser/layoutService.js';
 
 registerColor(
 	'actionBar.toggledBackground',
 	inputActiveOptionBackground,
 	localize('actionBar.toggledBackground', 'Background color for toggled action items in action bar.')
 );
+
+const ACTION_WIDGET_CLOSE_START_OPACITY_VARIABLE = '--action-widget-close-start-opacity';
+const ACTION_WIDGET_CLOSE_START_TRANSFORM_VARIABLE = '--action-widget-close-start-transform';
 
 const ActionWidgetContextKeys = {
 	Visible: new RawContextKey<boolean>('codeActionMenuVisible', false, localize('codeActionMenuVisible', "Whether the action widget list is visible")),
@@ -73,7 +77,8 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 	constructor(
 		@IContextViewService private readonly _contextViewService: IContextViewService,
 		@IContextKeyService private readonly _contextKeyService: IContextKeyService,
-		@IInstantiationService private readonly _instantiationService: IInstantiationService
+		@IInstantiationService private readonly _instantiationService: IInstantiationService,
+		@ILayoutService private readonly _layoutService: ILayoutService,
 	) {
 		super();
 	}
@@ -82,6 +87,7 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 		const visibleContext = ActionWidgetContextKeys.Visible.bindTo(this._contextKeyService);
 
 		const list = this._instantiationService.createInstance(ActionList, user, supportsPreview, items, delegate, accessibilityProvider, listOptions, anchor);
+		const targetContainer = container ?? (dom.isHTMLElement(anchor) ? this._layoutService.getContainer(dom.getWindow(anchor)) : undefined);
 		this._contextViewService.showContextView({
 			getAnchor: () => anchor,
 			render: (container: HTMLElement) => {
@@ -93,7 +99,7 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 				this._onWidgetClosed(didCancel);
 			},
 			get anchorPosition() { return list.anchorPosition; },
-		}, container, false);
+		}, targetContainer, false);
 	}
 
 	acceptSelected(preview?: boolean) {
@@ -147,6 +153,9 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 		}
 
 		this._closingList = list;
+		const computedStyle = dom.getWindow(widget).getComputedStyle(widget);
+		widget.style.setProperty(ACTION_WIDGET_CLOSE_START_OPACITY_VARIABLE, computedStyle.opacity);
+		widget.style.setProperty(ACTION_WIDGET_CLOSE_START_TRANSFORM_VARIABLE, computedStyle.transform);
 		widget.classList.add(closeAnimation.className);
 		list.hide(didCancel, false);
 		this._closeAnimation.value = disposableTimeout(() => {
@@ -159,6 +168,8 @@ class ActionWidgetService extends Disposable implements IActionWidgetService {
 	clear() {
 		this._closeAnimation.clear();
 		this._closingList = undefined;
+		this._widgetElement?.style.removeProperty(ACTION_WIDGET_CLOSE_START_OPACITY_VARIABLE);
+		this._widgetElement?.style.removeProperty(ACTION_WIDGET_CLOSE_START_TRANSFORM_VARIABLE);
 		this._widgetElement = undefined;
 		this._list.clear();
 	}
